@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 	struct position *pos;
 	pos = &position_test;
 
-	char str[] = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b HAha - 0 1";
+	char str[] = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w HAha - 0 1";
 
 	import_sfen(str, pos);
 

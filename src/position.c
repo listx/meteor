@@ -5,7 +5,7 @@ u64 MOVES_Q[64];
 u64 MOVES_R[64];
 u64 MOVES_X[64];
 
-u64 BIT_SIDE_TO_MOVE	= 0x1ULL << SHF_SIDE_TO_MOVE;
+u64 BIT_TURN		= 0x1ULL << SHF_TURN;
 u64 BIT_IN_CHECK	= 0x1ULL << SHF_IN_CHECK;
 u64 BIT_OO_W		= 0x1ULL << SHF_OO_W;
 u64 BIT_OOO_W		= 0x1ULL << SHF_OOO_W;
@@ -21,12 +21,12 @@ u64 BITS_FMR		= 0x7fULL << SHF_FMR;
  */
 void import_sfen(const char *str, struct position *pos)
 {
-	int rank, file, piece, sq, sq_cnt, idx, fmr;
+	int rank, file, piece, sq, sq_cnt, idx, ep_pawn_rank, fmr;
 	unsigned int i;
 	unsigned int bytes;
 	char *tokenize_me;
 	char *token;
-	u64 bb_tmp;
+	u64 rook, ep_pawn_adjacent;
 
 	pos_clear(pos);
 
@@ -66,8 +66,8 @@ void import_sfen(const char *str, struct position *pos)
 		case '7':
 		case '8':
 			piece = PIECE_NONE;
-			file += (token[idx] - 48 - 1);
-			sq_cnt += (token[idx] - 48);
+			file += (token[idx] - '1') + 1;
+			sq_cnt += (token[idx] - '1') + 1;
 			break;
 		case 'K': piece = WK; break;
 		case 'Q': piece = WQ; break;
@@ -81,16 +81,16 @@ void import_sfen(const char *str, struct position *pos)
 		case 'b': piece = BX; break;
 		case 'n': piece = BN; break;
 		case 'p': piece = BP; break;
-		case '/':
-			rank--;
-			file = FILE_A;
-			break;
+		case '/': piece = PIECE_NONE; break;
 		}
 		if (piece != PIECE_NONE) {
 			pos->piece[piece] |= BIT[((rank * 8) + file)];
-			if (file < FILE_H)
-				file++;
+			file++;
 			sq_cnt++;
+		}
+		if (file > FILE_H) {
+			rank--;
+			file = FILE_A;
 		}
 	}
 	/* Populate pos->piece_on[] array */
@@ -116,14 +116,14 @@ void import_sfen(const char *str, struct position *pos)
 	if (MOVES_K[sq_from_bit(&pos->piece[WK])] & pos->piece[BK])
 		fatal("Kings are adjacent");
 
-	/* Side to move */
+	/* Side to move (0 is White, 1 is Black) */
 	idx = 0;
 	token = strtok(NULL, " ");
 	assert(token[idx] == 'w' || token[idx] == 'b');
 	if (token[idx] == 'w')
-		pos->info &= ~BIT_SIDE_TO_MOVE;
+		pos->info &= ~BIT_TURN;
 	else
-		pos->info |= BIT_SIDE_TO_MOVE;
+		pos->info |= BIT_TURN;
 
 	/* Castling rights */
 
@@ -142,17 +142,15 @@ void import_sfen(const char *str, struct position *pos)
 			case 'G':
 			case 'H':
 				file = token[i] - 'A';
-				bb_tmp = pos->piece[WR] & BIT_RANK_1;
-				/* MSB is toward the right edge of the board, so
-				 * it is O-O castling (H-side); LSB is toward
-				 * left edge, so it's O-O-O castling (A-side)
-				 */
-				if (file == file_from(sq_MSB(bb_tmp))) {
+				/* Isolate the rook that is on the RIGHT side of
+				 * the king */
+				rook = pos->piece[WR] & BIT_FILE_RANK[file][RANK_1];
+				if (rook) {
 					pos->info |= ((u64)file) << SHF_HROOK_FILE;
-					pos->info |= BIT_OO_W;
-				} else if (file == file_from(bb_tmp & -bb_tmp)) {
-					pos->info |= ((u64)file) << SHF_AROOK_FILE;
-					pos->info |= BIT_OOO_W;
+					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[WK]))
+						pos->info |= BIT_OO_W;
+					else
+						pos->info |= BIT_OOO_W;
 				}
 				break;
 			case 'a':
@@ -164,13 +162,13 @@ void import_sfen(const char *str, struct position *pos)
 			case 'g':
 			case 'h':
 				file = token[i] - 'a';
-				bb_tmp = pos->piece[BR] & BIT_RANK_8;
-				if (file == file_from(sq_MSB(bb_tmp))) {
+				rook = pos->piece[BR] & BIT_FILE_RANK[file][RANK_8];
+				if (rook) {
 					pos->info |= ((u64)file) << SHF_HROOK_FILE;
-					pos->info |= BIT_OO_B;
-				} else if (file == file_from(bb_tmp & -bb_tmp)) {
-					pos->info |= ((u64)file) << SHF_AROOK_FILE;
-					pos->info |= BIT_OOO_B;
+					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[BK]))
+						pos->info |= BIT_OO_B;
+					else
+						pos->info |= BIT_OOO_B;
 				}
 				break;
 			default:
@@ -179,7 +177,7 @@ void import_sfen(const char *str, struct position *pos)
 		}
 	}
 
-	/* En passant square */
+	/* En passant square (only acknowledge actual en passant opportunities) */
 	token = strtok(NULL, " ");
 	if (strlen(token) > 2) {
 		fatal("En passant square field `%s' exceeds 2 characters", token);
@@ -203,8 +201,14 @@ void import_sfen(const char *str, struct position *pos)
 		default:
 			fatal("Invalid character `%c'", token[0]);
 		}
-		pos->info &= ~BITS_EP_SQ;
-		pos->info |= ((u64)sq_from(file, rank)) << SHF_EP_SQ;
+		/* Check if we can in fact make an EP capture */
+		ep_pawn_rank = (rank == RANK_3) ? RANK_4 : RANK_5;
+		sq = sq_from(file, ep_pawn_rank);
+		ep_pawn_adjacent = MOVES_K[sq] & BIT_RANK[ep_pawn_rank];
+		if (ep_pawn_adjacent & pos->piece[(pos->info & BIT_TURN) ? BP : WP]) {
+			pos->info &= ~BITS_EP_SQ;
+			pos->info |= ((u64)sq_from(file, rank)) << SHF_EP_SQ;
+		}
 	}
 
 	/* Fifty move clock (0 to 100 plies) */
@@ -263,12 +267,15 @@ void pos_clear(struct position *pos)
 /* Display the board to STDOUT, with colors */
 void disp_pos(struct position *pos)
 {
-	int rank, i;
+	int rank, sq, i;
 	char pieces[9];
-	printf("  a   b   c   d   e   f   g   h\n");
-	printf("\e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
+	char sq_str[3];
+	sq_str[2] = '\0';
+	printf("    a   b   c   d   e   f   g   h\n");
+	printf("  \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
 	for (rank = RANK_8; rank >= RANK_1; rank--) {
 		set_pieces_rank(rank, pos, pieces);
+		printf("%d ", rank + 1);
 		printf("\e[0;34m|\e[0m");
 		for (i = 0; i < 8; i++) {
 			/* Checkerboard pattern */
@@ -302,11 +309,12 @@ void disp_pos(struct position *pos)
 			printf(" \e[0m\e[0;34m|\e[0m");
 		}
 		printf(" %d\n", rank + 1);
-		printf("\e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
+		printf("  \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
 	}
+	printf("    a   b   c   d   e   f   g   h\n");
 
 	/* Side to move */
-	printf("Side to move: %s\n", (pos->info & BIT_SIDE_TO_MOVE) ? "Black" : "White");
+	printf("Side to move: %s\n", (pos->info & BIT_TURN) ? "Black" : "White");
 	/* Castling rights */
 	printf("Castling rights:\n");
 	printf("  White: ");
@@ -330,6 +338,15 @@ void disp_pos(struct position *pos)
 		if (pos->info & BIT_OO_B)
 			printf(", ");
 		printf("O-O-O\n");
+	}
+	/* En passant (true EP shown only, not "EP" square from FEN) */
+	if (pos->info & BITS_EP_SQ) {
+		sq = (pos->info & BITS_EP_SQ) >> SHF_EP_SQ;
+		printf("En Passant Square: ");
+		if (sq != SQ_NONE)
+			printf("%s\n", sq_to_str(sq, sq_str));
+		else
+			printf("None\n");
 	}
 }
 

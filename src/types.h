@@ -271,5 +271,6 @@ static inline int dist_sq(int sq1, int sq2)
 }
 
 extern void init_bitmasks();
+extern char *sq_to_str(int sq, char *str);
 
 #endif

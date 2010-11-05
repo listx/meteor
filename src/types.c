@@ -79,3 +79,31 @@ void init_bitmasks()
 		}
 	}
 }
+
+char *sq_to_str(int sq, char *str)
+{
+	int f, r;
+	f = file_from(sq);
+	r = rank_from(sq);
+	switch (f) {
+	case FILE_A: str[0] = 'a'; break;
+	case FILE_B: str[0] = 'b'; break;
+	case FILE_C: str[0] = 'c'; break;
+	case FILE_D: str[0] = 'd'; break;
+	case FILE_E: str[0] = 'e'; break;
+	case FILE_F: str[0] = 'f'; break;
+	case FILE_G: str[0] = 'g'; break;
+	case FILE_H: str[0] = 'h'; break;
+	}
+	switch (r) {
+	case RANK_1: str[1] = '1'; break;
+	case RANK_2: str[1] = '2'; break;
+	case RANK_3: str[1] = '3'; break;
+	case RANK_4: str[1] = '4'; break;
+	case RANK_5: str[1] = '5'; break;
+	case RANK_6: str[1] = '6'; break;
+	case RANK_7: str[1] = '7'; break;
+	case RANK_8: str[1] = '8'; break;
+	}
+	return str;
+}

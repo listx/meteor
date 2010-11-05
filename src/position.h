@@ -32,14 +32,14 @@ struct position {
  * .		1		White's A-side castling right (O-O-O)
  * .		1		White's H-side castling right (O-O)
  * .		1		Is the side to move in check? (1 = in check)
- * .		1		Side to move (0 = White to move; 1 = Black)
+ * .		1		Turn, aka side to move (0 = White to move; 1 = Black)
  * LSB
  */
 
 /* The number of bits we need to shift right in order to read the value of the
  * field in question.
  */
-#define SHF_SIDE_TO_MOVE	0
+#define SHF_TURN		0
 #define SHF_IN_CHECK		1
 #define SHF_OO_W		2
 #define SHF_OOO_W		3
@@ -50,7 +50,7 @@ struct position {
 #define SHF_EP_SQ		12
 #define SHF_FMR			19
 
-extern u64 BIT_SIDE_TO_MOVE;	/* 0 is White to move; 1 for Black */
+extern u64 BIT_TURN;	/* 0 is White to move; 1 for Black */
 extern u64 BIT_IN_CHECK;
 extern u64 BIT_OO_W;
 extern u64 BIT_OOO_W;
