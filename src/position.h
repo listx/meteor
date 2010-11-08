@@ -14,7 +14,7 @@ struct position {
 	u64 checkers;	/* all enemy attackers against our king */
 	u64 info;	/* metadata about position */
 	u64 zkey;	/* zobrist key */
-	int piece_on[64];	/* which squares have what pieces */
+	u8 piece_on[64];	/* which squares have what pieces */
 };
 
 /*
