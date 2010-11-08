@@ -22,7 +22,7 @@ u64 BITS_FMR		= 0x7fULL << SHF_FMR;
 void import_sfen(const char *str, struct position *pos)
 {
 	int rank, file, piece, sq, sq_cnt, idx, ep_pawn_rank, fmr;
-	unsigned int i;
+	unsigned int i, j;
 	unsigned int bytes;
 	char *tokenize_me;
 	char *token;
@@ -45,6 +45,15 @@ void import_sfen(const char *str, struct position *pos)
 	bytes = sizeof(*tokenize_me) * (strlen(str) + 1);
 	tokenize_me = malloc(bytes);
 	strncpy(tokenize_me, str, bytes);
+
+	/* Ensure that there are 5 space characters in the string (for proper
+	 * tokenization */
+	for (i = 0, j = 0; i + 1 < strlen(str); i++) {
+		if (isspace(str[i]) && !isspace(str[i+1]))
+			j++;
+	}
+	if (j != 5)
+		fatal("Invalid number of fields");
 
 	/* Piece placement */
 	token = strtok(tokenize_me, " ");

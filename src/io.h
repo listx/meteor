@@ -7,6 +7,7 @@
 #include <getopt.h>	/* getopt_long() */
 #include <stdarg.h>	/* va_list, va_start(), etc. */
 #include <string.h>	/* strtok(), strlen(), strcat(), etc. */
+#include <ctype.h>	/* isspace() */
 
 extern void error(const char *str, ...);
 extern void fatal(const char *str, ...);
