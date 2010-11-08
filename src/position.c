@@ -288,17 +288,21 @@ void disp_pos(struct position *pos)
 			case 'R':
 			case 'B':
 			case 'N':
-			case 'P':
 				printf("\e[1;37m%c", pieces[i]);
+				break;
+			case 'P':
+				printf("\e[1;37m*");
 				break;
 			case 'k':
 			case 'q':
 			case 'r':
 			case 'b':
 			case 'n':
-			case 'p':
 				/* Uppercase it back */
 				printf("\e[1;31m%c", pieces[i] - 0x20);
+				break;
+			case 'p':
+				printf("\e[1;31m*");
 				break;
 			case ' ':
 				printf(" ");
