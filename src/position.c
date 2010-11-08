@@ -91,6 +91,8 @@ void import_sfen(const char *str, struct position *pos)
 		case 'n': piece = BN; break;
 		case 'p': piece = BP; break;
 		case '/': piece = PIECE_NONE; break;
+		default:
+			fatal("Invalid character `%c' in piece placement info", token[idx]);
 		}
 		if (piece != PIECE_NONE) {
 			pos->piece[piece] |= BIT[((rank * 8) + file)];
