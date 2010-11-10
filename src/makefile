@@ -1,4 +1,5 @@
 CC = gcc
+#CC = clang
 CFLAGS = -Wall -Wextra
 # Optimization
 CFLAGS += -O3
@@ -8,7 +9,7 @@ CFLAGS += -march=native
 CFLAGS += -pipe
 # Debugging symbols
 #CFLAGS += -g -O0
-OBJECTS = io.o main.o move.o position.o types.o
+OBJECTS = io.o main.o move.o movegen.o position.o test.o types.o
 
 meteor : $(OBJECTS)
 		$(CC) $(CFLAGS) $(OBJECTS) -o meteor

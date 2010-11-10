@@ -8,6 +8,7 @@
 #include <stdarg.h>	/* va_list, va_start(), etc. */
 #include <string.h>	/* strtok(), strlen(), strcat(), etc. */
 #include <ctype.h>	/* isspace() */
+#include <inttypes.h>	/* PRIu64 */
 
 extern void error(const char *str, ...);
 extern void fatal(const char *str, ...);

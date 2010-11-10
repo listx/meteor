@@ -1,6 +1,6 @@
 #include "types.h"
 
-int GO[64][64];
+int GO_RAY[64][64];
 u64 BIT[64];
 u64 BIT_FILE_RANK[8][8];
 u64 BITS_R[64][64];
@@ -26,28 +26,27 @@ void init_bitmasks()
 		}
 	}
 
-	/* GO[64][64] */
+	/* GO_RAY[64][64] */
 	for (sq1 = A1; sq1 != SQ_NONE; sq1++) {
 		for (sq2 = A1; sq2 != SQ_NONE; sq2++) {
-			GO[sq1][sq2] = GO_NONE;
+			GO_RAY[sq1][sq2] = GO_NONE;
 			if (sq1 == sq2)
 				continue;
 			/* same file */
 			if (file_from(sq1) == file_from(sq2))
-				GO[sq1][sq2] = (sq2 > sq1) ? GO_N : GO_S;
+				GO_RAY[sq1][sq2] = (sq2 > sq1) ? GO_N : GO_S;
 			/* same rank */
 			else if (rank_from(sq1) == rank_from(sq2))
-				GO[sq1][sq2] = (sq2 > sq1) ? GO_E : GO_W;
+				GO_RAY[sq1][sq2] = (sq2 > sq1) ? GO_E : GO_W;
 
 			for (i = 0; i < 4; i++) {
 				direction = ray[i];
 				for (sq3 = sq1, sq4 = sq1 + direction; sq4 != sq2 && valid_sq(sq4) && dist_sq(sq3, sq4) == 1; sq3 += direction, sq4 += direction);
 				if (sq4 == sq2 && dist_sq(sq3, sq4) == 1) {
-					GO[sq1][sq2] = direction;
+					GO_RAY[sq1][sq2] = direction;
 					break;
 				}
 			}
-
 		}
 	}
 
@@ -59,7 +58,7 @@ void init_bitmasks()
 			BITS_R[sq1][sq2] = 0x0ULL;
 			BITS_X[sq1][sq2] = 0x0ULL;
 
-			direction = GO[sq1][sq2];
+			direction = GO_RAY[sq1][sq2];
 			if (direction != GO_NONE) {
 				/* Bits between sq1 and sq2, if any */
 				for (sq3 = sq1 + direction; sq3 != sq2; sq3 += direction) {
@@ -83,6 +82,7 @@ void init_bitmasks()
 char *sq_to_str(int sq, char *str)
 {
 	int f, r;
+	str[2] = '\0';
 	f = file_from(sq);
 	r = rank_from(sq);
 	switch (f) {
@@ -105,5 +105,23 @@ char *sq_to_str(int sq, char *str)
 	case RANK_7: str[1] = '7'; break;
 	case RANK_8: str[1] = '8'; break;
 	}
+
+	return str;
+}
+
+char *piece_to_str(int piece, char *str)
+{
+	str[1] = '\0';
+	switch (piece) {
+	case K: str[0] = 'K'; break;
+	case Q: str[0] = 'Q'; break;
+	case R: str[0] = 'R'; break;
+	case X: str[0] = 'B'; break;
+	case N: str[0] = 'N'; break;
+	case P: str[0] = '*'; break;
+	case PIECE_NONE: str[0] = ' '; break;
+	default: break;
+	}
+
 	return str;
 }

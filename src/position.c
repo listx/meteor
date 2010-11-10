@@ -6,7 +6,6 @@ u64 MOVES_R[64];
 u64 MOVES_X[64];
 
 u64 BIT_TURN		= 0x1ULL << SHF_TURN;
-u64 BIT_IN_CHECK	= 0x1ULL << SHF_IN_CHECK;
 u64 BIT_OO_W		= 0x1ULL << SHF_OO_W;
 u64 BIT_OOO_W		= 0x1ULL << SHF_OOO_W;
 u64 BIT_OO_B		= 0x1ULL << SHF_OO_B;
@@ -16,12 +15,14 @@ u64 BITS_AROOK_FILE	= 0x7ULL << SHF_AROOK_FILE;
 u64 BITS_EP_SQ		= 0x7fULL << SHF_EP_SQ;
 u64 BITS_FMR		= 0x7fULL << SHF_FMR;
 
+u64 BITS_CASR		= 0xfULL << SHF_CASR;
+
 /*
  * Import a Shredder-FEN string into the internal board position representation.
  */
 void import_sfen(const char *str, struct position *pos)
 {
-	int rank, file, piece, sq, sq_cnt, idx, ep_pawn_rank, fmr;
+	int rank, file, piece, color, sq, sq_cnt, idx, ep_pawn_rank, fmr;
 	unsigned int i, j;
 	unsigned int bytes;
 	char *tokenize_me;
@@ -58,6 +59,7 @@ void import_sfen(const char *str, struct position *pos)
 	/* Piece placement */
 	token = strtok(tokenize_me, " ");
 	piece = PIECE_NONE;
+	color = COLOR_NONE;
 	rank = RANK_8;
 	file = FILE_A;
 	sq_cnt = 0;	/* Running total of squares accounted for */
@@ -78,24 +80,24 @@ void import_sfen(const char *str, struct position *pos)
 			file += (token[idx] - '1') + 1;
 			sq_cnt += (token[idx] - '1') + 1;
 			break;
-		case 'K': piece = WK; break;
-		case 'Q': piece = WQ; break;
-		case 'R': piece = WR; break;
-		case 'B': piece = WX; break;
-		case 'N': piece = WN; break;
-		case 'P': piece = WP; break;
-		case 'k': piece = BK; break;
-		case 'q': piece = BQ; break;
-		case 'r': piece = BR; break;
-		case 'b': piece = BX; break;
-		case 'n': piece = BN; break;
-		case 'p': piece = BP; break;
+		case 'K': color = W; piece = K; break;
+		case 'Q': color = W; piece = Q; break;
+		case 'R': color = W; piece = R; break;
+		case 'B': color = W; piece = X; break;
+		case 'N': color = W; piece = N; break;
+		case 'P': color = W; piece = P; break;
+		case 'k': color = B; piece = K; break;
+		case 'q': color = B; piece = Q; break;
+		case 'r': color = B; piece = R; break;
+		case 'b': color = B; piece = X; break;
+		case 'n': color = B; piece = N; break;
+		case 'p': color = B; piece = P; break;
 		case '/': piece = PIECE_NONE; break;
 		default:
 			fatal("Invalid character `%c' in piece placement info", token[idx]);
 		}
 		if (piece != PIECE_NONE) {
-			pos->piece[piece] |= BIT[((rank * 8) + file)];
+			pos->piece[color][piece] |= BIT[((rank * 8) + file)];
 			file++;
 			sq_cnt++;
 		}
@@ -104,12 +106,16 @@ void import_sfen(const char *str, struct position *pos)
 			file = FILE_A;
 		}
 	}
-	/* Populate pos->piece_on[] array */
+	/* Populate misc information re: piece placement */
 	for (sq = A1; sq != SQ_NONE; sq++) {
-		for (piece = WK; piece != PIECE_NONE; piece++) {
-			if (BIT[sq] & pos->piece[piece]) {
-				pos->piece_on[sq] = piece;
-				break;
+		for (color = W; color != COLOR_NONE; color++) {
+			for (piece = K; piece != PIECE_NONE; piece++) {
+				if (BIT[sq] & pos->piece[color][piece]) {
+					pos->piece_on[sq] = piece;
+					pos->pieces[color] |= BIT[sq];
+					pos->occupied |= BIT[sq];
+					break;
+				}
 			}
 		}
 	}
@@ -119,12 +125,12 @@ void import_sfen(const char *str, struct position *pos)
 	/* Some more tests to verify validity of FEN */
 
 	/* There must be 1 king present for each color */
-	if (pos->piece[WK] == 0x0ULL)
+	if (pos->piece[W][K] == 0x0ULL)
 		fatal("White king missing");
-	if (pos->piece[BK] == 0x0ULL)
+	if (pos->piece[B][K] == 0x0ULL)
 		fatal("Black king missing");
 	/* Kings may not be adjacent to each other */
-	if (MOVES_K[sq_from_bit(&pos->piece[WK])] & pos->piece[BK])
+	if (MOVES_K[sq_from_bit(&pos->piece[W][K])] & pos->piece[B][K])
 		fatal("Kings are adjacent");
 
 	/* Side to move (0 is White, 1 is Black) */
@@ -135,6 +141,24 @@ void import_sfen(const char *str, struct position *pos)
 		pos->info &= ~BIT_TURN;
 	else
 		pos->info |= BIT_TURN;
+
+	/* Set auxiliary piece bitboards */
+	pos->pieces[W] =
+		pos->piece[W][K] |
+		pos->piece[W][Q] |
+		pos->piece[W][R] |
+		pos->piece[W][X] |
+		pos->piece[W][N] |
+		pos->piece[W][P];
+	pos->pieces[B] =
+		pos->piece[B][K] |
+		pos->piece[B][Q] |
+		pos->piece[B][R] |
+		pos->piece[B][X] |
+		pos->piece[B][N] |
+		pos->piece[B][P];
+	pos->occupied =
+		pos->pieces[W] | pos->pieces[B];
 
 	/* Castling rights */
 
@@ -155,13 +179,15 @@ void import_sfen(const char *str, struct position *pos)
 				file = token[i] - 'A';
 				/* Isolate the rook that is on the RIGHT side of
 				 * the king */
-				rook = pos->piece[WR] & BIT_FILE_RANK[file][RANK_1];
+				rook = pos->piece[W][R] & BIT_FILE_RANK[file][RANK_1];
 				if (rook) {
-					pos->info |= ((u64)file) << SHF_HROOK_FILE;
-					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[WK]))
+					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[W][K])) {
+						set_birthfile_H(file, &pos->info);
 						pos->info |= BIT_OO_W;
-					else
+					} else {
+						set_birthfile_A(file, &pos->info);
 						pos->info |= BIT_OOO_W;
+					}
 				}
 				break;
 			case 'a':
@@ -173,13 +199,15 @@ void import_sfen(const char *str, struct position *pos)
 			case 'g':
 			case 'h':
 				file = token[i] - 'a';
-				rook = pos->piece[BR] & BIT_FILE_RANK[file][RANK_8];
+				rook = pos->piece[B][R] & BIT_FILE_RANK[file][RANK_8];
 				if (rook) {
-					pos->info |= ((u64)file) << SHF_HROOK_FILE;
-					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[BK]))
+					if (sq_from_bit(&rook) > sq_from_bit(&pos->piece[B][K])) {
+						set_birthfile_H(file, &pos->info);
 						pos->info |= BIT_OO_B;
-					else
+					} else {
+						set_birthfile_A(file, &pos->info);
 						pos->info |= BIT_OOO_B;
+					}
 				}
 				break;
 			default:
@@ -216,31 +244,166 @@ void import_sfen(const char *str, struct position *pos)
 		ep_pawn_rank = (rank == RANK_3) ? RANK_4 : RANK_5;
 		sq = sq_from(file, ep_pawn_rank);
 		ep_pawn_adjacent = MOVES_K[sq] & BIT_RANK[ep_pawn_rank];
-		if (ep_pawn_adjacent & pos->piece[(pos->info & BIT_TURN) ? BP : WP]) {
-			pos->info &= ~BITS_EP_SQ;
-			pos->info |= ((u64)sq_from(file, rank)) << SHF_EP_SQ;
-		}
+		if (ep_pawn_adjacent & pos->piece[pos->info & BIT_TURN][P])
+			set_ep_sq(sq_from(file, rank), &pos->info);
 	}
 
 	/* Fifty move clock (0 to 100 plies) */
 	token = strtok(NULL, " ");
 	fmr = atoi(token);
-	pos->info |= ((u64)fmr) << SHF_FMR;
+	set_FMR(fmr, &pos->info);
 
 	/*
 	 * Whole move clock
 	 *
 	 * Since this info is not essential, we do not store it in the pos->info
-	 * bitmap. For now, we ignore it.
+	 * bitmap, but instead in a different global variable.
 	 */
+	token = strtok(NULL, " ");
+	FULL_MOVE_NUMBER = atoi(token);
+}
+
+char *export_sfen(struct position *pos, char *str, int fmn)
+{
+	int f, r, sq, empties, color, num, idx, i;
+	char cas_str[] = "ABCDEFGHabcdefgh";
+	char plies_str[6] = {'\0'};
+	empties = 0;
+	idx = 0;
+
+	/* Piece placement */
+	for (r = RANK_8; r >= RANK_1; r--) {
+		for (f = FILE_A; f != FILE_NONE; f++) {
+			sq = sq_from(f, r);
+			if (pos->piece_on[sq] != PIECE_NONE) {
+				/* record preceding empty squares */
+				if (empties) {
+					str[idx] = '0' + empties;
+					idx++;
+					empties = 0;
+				}
+				switch (pos->piece_on[sq]) {
+				case K: str[idx] = (pos->piece[W][K] & BIT[sq]) ? 'K' : 'k'; break;
+				case Q: str[idx] = (pos->piece[W][Q] & BIT[sq]) ? 'Q' : 'q'; break;
+				case R: str[idx] = (pos->piece[W][R] & BIT[sq]) ? 'R' : 'r'; break;
+				case X: str[idx] = (pos->piece[W][X] & BIT[sq]) ? 'B' : 'b'; break;
+				case N: str[idx] = (pos->piece[W][N] & BIT[sq]) ? 'N' : 'n'; break;
+				case P: str[idx] = (pos->piece[W][P] & BIT[sq]) ? 'P' : 'p'; break;
+				}
+				idx++;
+			} else
+				empties++;
+
+			if (f == FILE_H && empties) {
+				str[idx] = '0' + empties;
+				idx++;
+			}
+		}
+		empties = 0;
+		if (r > RANK_1) {
+			str[idx] = '/';
+			idx++;
+		}
+	}
+	str[idx] = ' ';
+	idx++;
+
+	/* Side to move (0 is White, 1 is Black) */
+	str[idx] = (pos->info & BIT_TURN) ? 'b' : 'w';
+	idx++;
+	str[idx] = ' ';
+	idx++;
+
+	/* Castling rights */
+	if (cas_rights(&pos->info)) {
+		for (color = W; color != COLOR_NONE; color++) {
+			if (can_OO(color, &pos->info)) {
+				str[idx] = cas_str[birthfile_H(&pos->info) + (color * 8)];
+				idx++;
+			}
+			if (can_OOO(color, &pos->info)) {
+				str[idx] = cas_str[birthfile_A(&pos->info) + (color * 8)];
+				idx++;
+			}
+		}
+	} else {
+		str[idx] = '-';
+		idx++;
+	}
+	str[idx] = ' ';
+	idx++;
+
+	/* En passant square */
+	if (ep_sq(&pos->info) != SQ_NONE) {
+		str[idx] = file_to_char(file_from(ep_sq(&pos->info)));
+		idx++;
+		str[idx] = rank_to_char(rank_from(ep_sq(&pos->info)));
+		idx++;
+	} else {
+		str[idx] = '-';
+		idx++;
+	}
+	str[idx] = ' ';
+	idx++;
+
+	/* Fifty Move Rule */
+	num = plies_FMR(&pos->info);
+	if (num) {
+		i = 0;
+		while (num) {
+			plies_str[i++] = '0' + (num % 10);
+			num /= 10;
+		}
+		if (i) {
+			while (i)
+				str[idx++] = plies_str[--i];
+		} else {
+			str[idx] = plies_str[0];
+			idx++;
+		}
+	} else {
+		str[idx] = '0';
+		idx++;
+	}
+	str[idx] = ' ';
+	idx++;
+
+	/* Full move number */
+
+	num = fmn;
+	if (num) {
+		for (i = 0; i < 6; i++) {
+			plies_str[i] = '\0';
+		}
+		i = 0;
+		while (num) {
+			plies_str[i++] = '0' + (num % 10);
+			num /= 10;
+		}
+		if (i) {
+			while (i)
+				str[idx++] = plies_str[--i];
+		} else {
+			str[idx] = plies_str[0];
+			idx++;
+		}
+	} else {
+		str[idx] = '0';
+		idx++;
+	}
+	str[idx] = '\0';
+
+	return str;
 }
 
 void pos_clear(struct position *pos)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; i != PIECE_NONE; i++) {
-		pos->piece[i] = 0x0ULL;
+	for (i = 0; i != COLOR_NONE; i++) {
+		for (j = 0; j != PIECE_NONE; j++) {
+			pos->piece[i][j] = 0x0ULL;
+		}
 	}
 
 	pos->pieces[W]	= 0x0ULL;
@@ -281,12 +444,11 @@ void disp_pos(struct position *pos)
 	int rank, sq, i;
 	char pieces[9];
 	char sq_str[3];
-	sq_str[2] = '\0';
-	printf("    a   b   c   d   e   f   g   h\n");
-	printf("  \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
+	printf("     a   b   c   d   e   f   g   h\n");
+	printf("   \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
 	for (rank = RANK_8; rank >= RANK_1; rank--) {
 		set_pieces_rank(rank, pos, pieces);
-		printf("%d ", rank + 1);
+		printf(" %d ", rank + 1);
 		printf("\e[0;34m|\e[0m");
 		for (i = 0; i < 8; i++) {
 			/* Checkerboard pattern */
@@ -324,9 +486,9 @@ void disp_pos(struct position *pos)
 			printf(" \e[0m\e[0;34m|\e[0m");
 		}
 		printf(" %d\n", rank + 1);
-		printf("  \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
+		printf("   \e[0;34m+---+---+---+---+---+---+---+---+\e[0m\n");
 	}
-	printf("    a   b   c   d   e   f   g   h\n");
+	printf("     a   b   c   d   e   f   g   h\n");
 
 	/* Side to move */
 	printf("Side to move: %s\n", (pos->info & BIT_TURN) ? "Black" : "White");
@@ -343,6 +505,8 @@ void disp_pos(struct position *pos)
 			printf(", ");
 		printf("O-O-O\n");
 	}
+	if (!(pos->info & BIT_OO_W) && !(pos->info & BIT_OOO_W))
+		printf("None \n");
 	printf("  Black: ");
 	if (pos->info & BIT_OO_B) {
 		printf("O-O");
@@ -354,6 +518,8 @@ void disp_pos(struct position *pos)
 			printf(", ");
 		printf("O-O-O\n");
 	}
+	if (!(pos->info & BIT_OO_B) && !(pos->info & BIT_OOO_B))
+		printf("None \n");
 	/* En passant (true EP shown only, not "EP" square from FEN) */
 	if (pos->info & BITS_EP_SQ) {
 		sq = (pos->info & BITS_EP_SQ) >> SHF_EP_SQ;
@@ -363,6 +529,16 @@ void disp_pos(struct position *pos)
 		else
 			printf("None\n");
 	}
+
+	/* Debugging data */
+	/**********************************/
+	/* printf("pos->pieces[W]:\n");   */
+	/* disp_bitboard(pos->pieces[W]); */
+	/* printf("pos->pieces[B]:\n");   */
+	/* disp_bitboard(pos->pieces[B]); */
+	/* printf("pos->occupied:\n");    */
+	/* disp_bitboard(pos->occupied);  */
+	/**********************************/
 }
 
 /* For debugging */
@@ -388,30 +564,29 @@ void disp_bitboard(u64 bb)
  */
 void set_pieces_rank(int rank, struct position *pos, char *pieces)
 {
-	int piece, sq, idx;
+	int color, piece, sq, idx;
 
 	idx = 0;
 
 	for (sq = rank * 8; sq < ((rank * 8) + 8); sq++, idx++) {
 		pieces[idx] = ' ';
-		for (piece = WK; piece != PIECE_NONE; piece++) {
-			if (BIT[sq] & pos->piece[piece]) {
-				switch (piece) {
-				case WK: pieces[idx] = 'K'; break;
-				case WQ: pieces[idx] = 'Q'; break;
-				case WR: pieces[idx] = 'R'; break;
-				case WX: pieces[idx] = 'B'; break;
-				case WN: pieces[idx] = 'N'; break;
-				case WP: pieces[idx] = 'P'; break;
-				case BK: pieces[idx] = 'k'; break;
-				case BQ: pieces[idx] = 'q'; break;
-				case BR: pieces[idx] = 'r'; break;
-				case BX: pieces[idx] = 'b'; break;
-				case BN: pieces[idx] = 'n'; break;
-				case BP: pieces[idx] = 'p'; break;
-				default: assert(0);
+		for (color = W; color != COLOR_NONE; color++) {
+			for (piece = K; piece != PIECE_NONE; piece++) {
+				if (BIT[sq] & pos->piece[color][piece]) {
+					switch (piece) {
+					case K: pieces[idx] = 'K'; break;
+					case Q: pieces[idx] = 'Q'; break;
+					case R: pieces[idx] = 'R'; break;
+					case X: pieces[idx] = 'B'; break;
+					case N: pieces[idx] = 'N'; break;
+					case P: pieces[idx] = 'P'; break;
+					default: assert(0);
+					}
+					/* if black, lowercase it */
+					if (color == B)
+						pieces[idx] += 0x20;
+					break;
 				}
-				break;
 			}
 		}
 	}

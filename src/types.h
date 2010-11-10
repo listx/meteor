@@ -6,15 +6,18 @@
 #include "io.h"
 
 typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
 typedef uint64_t u64;
 
 #define MIN(a, b) ((a < b) ? a : b)
 #define MAX(a, b) ((a < b) ? b : a)
 
+#define FLIP_SQ_VERT 56
+
 /* Pieces */
 enum {
-	WK, WQ, WR, WX, WN, WP,
-	BK, BQ, BR, BX, BN, BP,
+	K, Q, R, X, N, P,
 	PIECE_NONE
 };
 
@@ -130,7 +133,7 @@ static const u64 BIT_FILES_ADJACENT[8] = {
 	BIT_FILE_G,
 };
 
-extern int GO[64][64];		/* Direction of sq1 to sq2, if on a ray */
+extern int GO_RAY[64][64];	/* Direction of sq1 to sq2, if on a ray */
 extern u64 BIT[64];		/* 1 bit turned on for each square */
 extern u64 BIT_FILE_RANK[8][8]; /* same as BIT[64], but 2-dimensional */
 
@@ -168,7 +171,7 @@ static inline int sq_from_bit(u64 *b)
 	return LSB_TABLE[(DE_BRUIJN_SEQUENCE * *b) >> 58];
 }
 
-static inline int pop_LSB_sq(u64 *b)
+static inline int pop_LSB(u64 *b)
 {
         int sq_LSB = LSB_TABLE[(DE_BRUIJN_SEQUENCE * (*b & -(*b))) >> 58];
         *b &= (*b - 1);	/* clear LSB */
@@ -270,7 +273,28 @@ static inline int dist_sq(int sq1, int sq2)
 	return (MAX(dist_file(sq1, sq2), dist_rank(sq1, sq2)));
 }
 
+static inline int rel_rank(int color, int rank)
+{
+	return abs(rank - (color * 7));
+}
+
+static inline int rel_sq(int color, int sq)
+{
+	return sq ^ (color * FLIP_SQ_VERT);
+}
+
+static inline char file_to_char(int f)
+{
+	return 'a' + f;
+}
+
+static inline char rank_to_char(int r)
+{
+	return '1' + r;
+}
+
 extern void init_bitmasks();
 extern char *sq_to_str(int sq, char *str);
+extern char *piece_to_str(int piece, char *str);
 
 #endif
