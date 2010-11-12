@@ -92,6 +92,6 @@ void disp_help()
 
 void disp_ver()
 {
-	printf("meteor version 0.01\n");
+	printf("Meteor 0.02\n");
 	exit(0);
 }
