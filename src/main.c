@@ -60,6 +60,7 @@ int main(int argc, char **argv)
 
 	init_bitmasks();
 	init_bitmasks_moves();
+	init_pawn_attacks();
 	init_attacks();
 
 	switch (mode) {

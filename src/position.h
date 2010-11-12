@@ -134,6 +134,14 @@ static inline int plies_FMR(u64 *pos_info)
 	return (*pos_info & BITS_FMR) >> SHF_FMR;
 }
 
+static inline u64 sliders_R(int color, struct position *pos)
+{
+	return (
+		pos->piece[color][R] |
+		pos->piece[color][Q]
+	       );
+}
+
 static inline u64 sliders(int color, struct position *pos)
 {
 	return (
@@ -156,11 +164,6 @@ static inline void set_ep_sq(int sq, u64 *pos_info)
 {
 	*pos_info &= ~BITS_EP_SQ;
 	*pos_info |= (u64)(sq) << SHF_EP_SQ;
-}
-
-static inline void reset_FMR(u64 *pos_info)
-{
-	*pos_info &= ~BITS_FMR;
 }
 
 static inline void set_birthfile_H(int f, u64 *pos_info)
@@ -217,6 +220,11 @@ static inline void revoke_OOO(int color, u64 *pos_info)
 static inline void revoke_OO_OOO(int color, u64 *pos_info)
 {
 	(color == W) ? revoke_OO_OOO_W(pos_info) : revoke_OO_OOO_B(pos_info);
+}
+
+static inline void reset_FMR(u64 *pos_info)
+{
+	*pos_info &= ~BITS_FMR;
 }
 
 static inline void set_FMR(int plies, u64 *pos_info)

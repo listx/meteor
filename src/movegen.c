@@ -116,9 +116,10 @@ u64 index_to_bitboard(int idx, u64 mask)
         int a, b, bits;
         bits = bit_count(mask);
         u64 result = 0x0ULL;
-        for(a = 0; a < bits; a++) {
+        for (a = 0; a < bits; a++) {
                 b = pop_LSB(&mask);
-                if(idx & (1 << a)) result |= (0x1ULL << b);
+                if (idx & (1 << a))
+			result |= (0x1ULL << b);
         }
         return result;
 }
@@ -144,10 +145,10 @@ u8 movegen(struct position *pos, struct move *mlist, int us)
 	sq2 = SQ_NONE;
 	pc = PIECE_NONE;
 	moves = 0;
-	moves_total = 0;
 
 	moves_total  = movegen_N(pos, mlist, &moves, us, &targets, sqk, sq1, sq2, &source, pc);
 	moves_total += movegen_K(pos, mlist + moves_total, &moves, us, &targets, sqk, sq2, pc);
+	moves_total += movegen_P(pos, mlist + moves_total, &moves, us, &targets, sqk, sq1, sq2, &source, pc);
 	moves_total += movegen_slider(pos, mlist + moves_total, &moves, us, &targets, sqk, sq1, sq2, &source, pc, R);
 	moves_total += movegen_slider(pos, mlist + moves_total, &moves, us, &targets, sqk, sq1, sq2, &source, pc, X);
 	moves_total += movegen_slider(pos, mlist + moves_total, &moves, us, &targets, sqk, sq1, sq2, &source, pc, Q);
@@ -259,6 +260,258 @@ u8 movegen_K(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *t
 			mlist[(*moves)++].info = move_create(sqk, sq2, MOVE_OOO, K, PIECE_NONE, PIECE_NONE);
 	}
 
+	return *moves;
+}
+
+u8 movegen_P(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *targets, int sqk, int sq1, int sq2, u64 *source, int pc)
+{
+        *moves = 0;
+        *source = pos->piece[us][P];
+        while (*source) {
+                sq1 = pop_LSB(source);
+                if (!pos->checkers) {
+			/* Normal 1 or 2 square pawn pushes forward */
+
+                        /* add a 1-square push move if 1 square in front of the pawn is empty */
+                        *targets = ((BIT[sq1] << 8) >> (us << 4)) & ~pos->occupied;
+                        if (*targets) {
+                                sq2 = sq_from_bit(targets);
+                                /* if this pawn is pinned, ignore pins that are
+				 * on the same file */
+                                if (BIT[sq1] & pos->pinned)
+                                        *targets &= BIT_FILE[file_from(sqk)];
+                                if (*targets) {
+					/* regular 1-square pawn push forward */
+                                        if (rank_from(sq1) != rel_rank(us, RANK_7)) {
+                                                mlist[(*moves)++].info = move_create_normal(sq1, sq2, P, PIECE_NONE);
+                                        } else {
+						/* non-capture promotions */
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, PIECE_NONE, Q);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, PIECE_NONE, R);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, PIECE_NONE, X);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, PIECE_NONE, N);
+                                        }
+                                }
+				/* Double pawn pushes forward */
+
+				/* Since we've already checked if there are no
+				 * obstructions 1 rank above (3rd rank), we only
+				 * need to check that (1) this pawn is on the
+				 * 2nd rank, and (2) that the 4th rank for this
+				 * file is empty
+				 */
+                                if (BIT[sq1] & BIT_RANK[rel_rank(us, RANK_2)]) {
+					/* Since "*targets" is already 1 rank
+					 * above, we only need to repeat the
+					 * procedure we did above to set the
+					 * rank to the 2nd rank above
+					 */
+                                        *targets = (((*targets << 8) >> (us << 4)) & ~pos->occupied);
+                                        if (*targets) {
+                                                sq2 = sq_from_bit(targets);
+                                                if (BIT[sq1] & pos->pinned)
+                                                        *targets &= BIT_FILE[file_from(sqk)];
+                                                if (*targets) {
+							/* check for EP
+							 * opportunities
+							 */
+                                                        if (MOVES_K[sq2] & BIT_RANK[rel_rank(us, RANK_4)] & pos->piece[!us][P])
+                                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CREATE, P, PIECE_NONE, PIECE_NONE);
+                                                        else
+                                                                mlist[(*moves)++].info = move_create_normal(sq1, sq2, P, PIECE_NONE);
+                                                }
+                                        }
+                                }
+                        }
+
+			/* Normal captures */
+                        *targets = ATTACKS_P[us][sq1] & pos->pieces[!us];
+
+			/* If this pawn is pinned, it can make a capture of the
+			 * pinner only
+			 */
+                        if (BIT[sq1] & pos->pinned) {
+                                u64 pinner = attacks_Q(sqk, sliders(!us, pos)) & sliders(!us, pos);
+                                while (pinner) {
+                                        sq2 = pop_LSB(&pinner);
+                                        if (BITS_Q[sqk][sq2] & BIT[sq1]) {
+                                                *targets &= BIT[sq2];
+                                                break;
+                                        }
+                                }
+                        }
+                        while (*targets) {
+                                sq2 = pop_LSB(targets);
+                                pc = pos->piece_on[sq2];
+                                if (rank_from(sq2) != rel_rank(us, RANK_8)) {
+                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_NORMAL, P, pc, PIECE_NONE);
+
+                                } else {
+				/* If the captured piece is on the 8th rank,
+				 * then this is a promotion-capture
+				 */
+                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, Q);
+                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, R);
+                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, X);
+                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, N);
+                                }
+                        }
+
+			/* En passant captures */
+                        if (ep_sq(&pos->info) != SQ_NONE) {
+				/* internally, ep_sq is always on the 6th or 3rd
+				 * rank */
+				int eps = ep_sq(&pos->info);
+				/* get rank of enemy pawn that just did a double
+				 * pawn push
+				 */
+				int ep_pawn_sq = (eps + (us ? 8 : -8));
+                                int epr = rank_from(ep_pawn_sq);
+                                if (BIT[sq1] & BIT_RANK[epr] & MOVES_K[ep_pawn_sq]) {
+					/* destination sq of ep capture is the
+					 * sq _behind_ the ep square
+					 */
+                                        //sq2 = sq_from(epf, rel_rank(us, RANK_6));
+					sq2 = ep_sq(&pos->info);
+					/* Some chess laws:
+					 *
+					 * If the pawn is pinned, it can never
+					 * make an en passant capture. (So we
+					 * don't need to add any moves.)
+					 *
+					 * If the pawn is not pinned, it is
+					 * still not allowed to make an en
+					 * passant capture if it and the enemy
+					 * EP pawn are the only two blockers
+					 * between an enemy Rook or Queen and
+					 * its own King (e.g., in FEN, something
+					 * like: r1pP3K -> here, P cannot take
+					 * the en-passant p, since that would
+					 * result in: r6K, exposing the king.)
+					 * Otherwise, the en passant capture is
+					 * allowed.
+					 */
+
+                                        if (BIT[sq1] & ~pos->pinned) {
+                                                u64 enemy_sliders_R = attacks_R(sqk, (pos->occupied & ~(BIT[sq1] | BIT[ep_pawn_sq]))) & sliders_R(!us, pos) & BIT_RANK[epr];
+                                                if (BIT_RANK[epr] & BIT[sqk] && enemy_sliders_R) {
+                                                        while (enemy_sliders_R) {
+                                                                int sq3 = pop_LSB(&enemy_sliders_R);
+                                                                u64 ray = BITS_R[sqk][sq3];
+								if (!(ray & (BIT[sq1] | BIT[ep_pawn_sq]))) {
+                                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+                                                                        break;
+                                                                }
+                                                        }
+                                                } else {
+                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+                                                }
+                                        }
+                                }
+                        }
+                } else {
+			/*
+			 * If we are in check, then any pawn that can move to
+			 * thwart this checking threat has only 1 single valid
+			 * move, unless that pawn's destination is the 8th rank
+			 * (e.g., capturing a sliding piece that is on the 8th
+			 * rank, or just pushing into the 8th rank to block an
+			 * 8th rank ray).
+			 *
+			 * The basic way we handle this is to add all the valid
+			 * target squares (sq2) first, and then by looking at
+			 * the targte square, add in the appropriate moves at
+			 * the end.
+			 */
+
+			/*
+			 * Only try to add moves if there is 1 checker, and if
+			 * this pawn is not pinned (pinned pawns cannot do
+			 * anything if the king is in check).
+			 */
+                        if (pos->checkers && !(pos->checkers & (pos->checkers - 1)) && (BIT[sq1] & ~pos->pinned)) {
+				/* Regular captures of checking piece */
+                                *targets = ATTACKS_P[us][sq1] & pos->checkers;
+
+                                /*
+				 * En passant captures of checking piece
+				 *
+				 * If we are in check and the ep sq is not
+				 * SQ_NONE, either (1) the ep pawn itself is the
+				 * checking piece, OR (2) the ep pawn has moved
+				 * out of the way of a sliding piece (which is
+				 * the real checking piece); we can only add an
+				 * ep capture move if it's the first condition.
+				 */
+                                if (ep_sq(&pos->info) != SQ_NONE) {
+					int eps = ep_sq(&pos->info);
+                                        int epf = file_from(eps);
+					int ep_pawn_sq = (eps + (us ? 8 : -8));
+                                        if ((BIT[ep_pawn_sq] & pos->checkers) &&
+					    (BIT[sq1] & MOVES_K[ep_pawn_sq] & BIT_RANK[rel_rank(us, RANK_5)])) {
+						*targets |= BIT_FILE_RANK[epf][rel_rank(us, RANK_6)];
+					}
+                                }
+				/* Blocking moves for sliding checkers */
+                                if (sliders(!us, pos) & pos->checkers) {
+					/* get ray b/n our king and enemy
+					 * sliding checker
+					 */
+                                        u64 ray = BITS_Q[sqk][sq_from_bit(&pos->checkers)];
+					/* single pawn push */
+                                        *targets |= ((BIT[sq1] << 8) >> (us << 4)) & ~pos->occupied & ray;
+                                        /* double pawn push */
+                                        u64 sqfront = ((BIT[sq1] << 8) >> (us << 4)) & ~pos->occupied;
+                                        sqfront = ((sqfront << 8) >> (us << 4)) & ~pos->occupied;
+                                        if (sqfront && (BIT[sq1] & BIT_RANK[rel_rank(us, RANK_2)]))
+                                                *targets |= sqfront & ray;
+                                }
+				/* Add correct moves based on target squares */
+                                while (*targets) {
+                                        sq2 = pop_LSB(targets);
+                                        pc = pos->piece_on[sq2];
+
+					/* If an ep pawn is checking, it can be
+					 * either an ep capture or a regular
+					 * capture
+					 */
+                                        if (ep_sq(&pos->info) != SQ_NONE) {
+						/* If sq2 is the same square as
+						 * the ep pawn, then it's a
+						 * regular capture
+						 */
+                                                if (BIT[sq2] & pos->checkers)
+                                                        mlist[(*moves)++].info = move_create_normal(sq1, sq2, P, P);
+                                                else
+                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+						/* Since a pawn doing an ep
+						 * capture _while in check_ can
+						 * do no other moves, break loop
+						 * for this pawn to save time.
+						 */
+                                                break;
+                                        }
+
+					/* normal captures and single/double
+					 * pawn pushes, and promotions
+					 */
+                                        if (rank_from(sq2) != rel_rank(us, RANK_8)) {
+						/* check for EP creation */
+                                                if ((dist_sq(sq1, sq2) > 1) && (((ATTACKS_P[us][sq1] << 8) >> (us << 4)) & pos->piece[!us][P]))
+                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CREATE, P, pc, PIECE_NONE);
+                                                else
+                                                        mlist[(*moves)++].info = move_create_normal(sq1, sq2, P, pc);
+                                        } else {
+						/* promotions */
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, Q);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, R);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, X);
+                                                mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_PROM, P, pc, N);
+                                        }
+                                }
+                        }
+                }
+        }
 	return *moves;
 }
 
@@ -438,10 +691,44 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 inc_FMR(&pos->info);
 		break;
 	case MOVE_EP_CREATE:
+                pos->piece[us][P] |= BIT[sq2];
+                pos->pieces[us] |= BIT[sq2];
+                pos->occupied |= BIT[sq2];
+                pos->piece_on[sq2] = P;
+                set_ep_sq(sq2 + (us ? 8 : -8), &pos->info);
+                reset_FMR(&pos->info);
 		break;
 	case MOVE_EP_CAPTURE:
-		break;
+                sq3 = sq_from(file_from(sq2), rel_rank(us, RANK_5));
+		/* clear captured pawn's square */
+                pos->piece[!us][P] &= ~BIT[sq3];
+                pos->pieces[!us] &= ~BIT[sq3];
+                pos->occupied &= ~BIT[sq3];
+                pos->piece_on[sq3] = PIECE_NONE;
+
+                set_ep_sq(SQ_NONE, &pos->info);
+                pos->piece[us][P] |= BIT[sq2];
+                pos->pieces[us] |= BIT[sq2];
+                pos->occupied |= BIT[sq2];
+                pos->piece_on[sq2] = P;
+                reset_FMR(&pos->info);
+                break;
 	case MOVE_PROM:
+                set_ep_sq(SQ_NONE, &pos->info);
+                pos->piece[us][ppiece(move_info)] |= BIT[sq2];
+                pos->pieces[us] |= BIT[sq2];
+                pos->occupied |= BIT[sq2];
+                pos->piece_on[sq2] = ppiece(move_info);
+                reset_FMR(&pos->info);
+                if (pc != PIECE_NONE) {
+                        pos->piece[!us][pc] &= ~BIT[sq2];
+                        pos->pieces[!us] &= ~BIT[sq2];
+			/* if pc is rook, check if it was a virgin rook and
+			 * revoke appropriate castling right
+			 */
+                        if (pc == R)
+				set_virgin_rook_changed(!us, sq2, &pos->info);
+                }
 		break;
 	default:
 		break;
@@ -494,9 +781,24 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 			pos->piece_on[sq2] = pc;
 		}
 
-		/* FIXME: add promotion stuff */
+		/* if move was a promotion, then banish the promoted-to piece */
+		if (mt == MOVE_PROM)
+			pos->piece[us][ppiece(move_info)] &= ~BIT[sq2];
 		break;
 	case MOVE_EP_CAPTURE:
+		/* resurrect the enemy pawn */
+		sq3 = sq_from(file_from(sq2), rel_rank(us, RANK_5));
+		pos->piece[!us][P] |= BIT[sq3];
+		pos->pieces[!us] |= BIT[sq3];
+		pos->occupied |= BIT[sq3];
+		pos->piece_on[sq3] = P;
+		/* s2 must be cleared, since a pawn in an ep capture _moves_ to
+		 * an empty square (and captures from a different square)
+		 */
+		pos->piece[us][P] &= ~BIT[sq2];
+		pos->pieces[us] &= ~BIT[sq2];
+		pos->occupied &= ~BIT[sq2];
+		pos->piece_on[sq2] = PIECE_NONE;
 		break;
 	case MOVE_OO:
 	case MOVE_OOO:

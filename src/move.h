@@ -9,6 +9,7 @@ extern u64 MOVES_Q[64];
 extern u64 MOVES_R[64];
 extern u64 MOVES_X[64];
 extern u64 MOVES_N[64];
+extern u64 ATTACKS_P[2][64];
 
 /* Move Information */
 struct move {
@@ -109,6 +110,7 @@ static inline u32 ppiece(u32 *move_info)
 }
 
 extern void init_bitmasks_moves();
+extern void init_pawn_attacks();
 extern void disp_move(u32 *move_info);
 
 #endif

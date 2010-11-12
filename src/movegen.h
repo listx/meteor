@@ -87,6 +87,12 @@ static inline void bit_attacks_K(int attacker, struct position *pos, u64 *bits)
 	*bits |= MOVES_K[sq_from_bit(&pos->piece[attacker][K])];
 }
 
+static inline void bit_attacks_P(int attacker, struct position *pos, u64 *bits)
+{
+        *bits |= ((pos->piece[attacker][P] << 7) >> (attacker << 4)) & ~BIT_FILE_H;
+        *bits |= ((pos->piece[attacker][P] << 9) >> (attacker << 4)) & ~BIT_FILE_A;
+}
+
 static inline void bit_attacks_R(int attacker, struct position *pos, u64 *bits)
 {
 	u64 bb = pos->piece[attacker][R];
@@ -116,8 +122,8 @@ static inline u64 bits_attacked_by(int attacker, struct position *pos)
 {
 	u64 bits = 0x0ULL;
 	bit_attacks_N(attacker, pos, &bits);
-	/* FIXME: pawn attacks */
 	bit_attacks_K(attacker, pos, &bits);
+	bit_attacks_P(attacker, pos, &bits);
 	bit_attacks_R(attacker, pos, &bits);
 	bit_attacks_X(attacker, pos, &bits);
 	bit_attacks_Q(attacker, pos, &bits);
@@ -176,16 +182,10 @@ static inline void find_checkers(struct position *pos)
 
 	/* find all enemy checkers against our king */
 	if (bits_attacked_by(!us, pos) & BIT[sqk]) {
-		/* add all checkers */
+		/* add all knight, pawn checkers */
 		pos->checkers |= MOVES_N[sqk] & pos->piece[!us][N];
-		/* FIXME: add pawn checkers */
-
-		/* add adjacent sliders */
-		pos->checkers |= MOVES_K[sqk] & ~MOVES_X[sqk] & pos->piece[!us][R];
-		pos->checkers |= MOVES_K[sqk] & ~MOVES_R[sqk] & pos->piece[!us][X];
-		pos->checkers |= MOVES_K[sqk] & pos->piece[!us][Q];
-
-		/* add sliders, only if not blocked */
+		pos->checkers |= ATTACKS_P[us][sqk] & pos->piece[!us][P];
+		/* add slideing checkers, only if not blocked */
 		u64 enemy_sliders = attacks_Q(sqk, pos->occupied) & sliders(!us, pos);
 		while (enemy_sliders) {
 			sq2 = pop_LSB(&enemy_sliders);
@@ -195,13 +195,22 @@ static inline void find_checkers(struct position *pos)
 				case R:
 					if (BITS_R[sqk][sq2])
 						pos->checkers |= BIT[sq2];
+					/* adjacent rook */
+					if (MOVES_K[sqk] & MOVES_R[sqk] & BIT[sq2])
+						pos->checkers |= BIT[sq2];
 					break;
 				case X:
 					if (BITS_X[sqk][sq2])
 						pos->checkers |= BIT[sq2];
+					/* adjacent bishop */
+					if (MOVES_K[sqk] & MOVES_X[sqk] & BIT[sq2])
+						pos->checkers |= BIT[sq2];
 					break;
 				case Q:
 					pos->checkers |= BIT[sq2];
+					/* adjacent queen */
+					if (MOVES_K[sqk] & BIT[sq2])
+						pos->checkers |= BIT[sq2];
 					break;
 				default:
 					assert(0);
@@ -220,6 +229,7 @@ extern u64 index_to_bitboard(int idx, u64 mask);
 extern u8 movegen(struct position *pos, struct move *mlist, int us);
 extern u8 movegen_N(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *targets, int sqk, int sq1, int sq2, u64 *source, int pc);
 extern u8 movegen_K(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *targets, int sqk, int sq2, int pc);
+extern u8 movegen_P(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *targets, int sqk, int sq1, int sq2, u64 *source, int pc);
 extern u8 movegen_slider(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *targets, int sqk, int sq1, int sq2, u64 *source, int pc, int piece_slider);
 extern void move_do(struct position *pos, u32 *move_info, u32 *undo_info);
 extern void move_undo(struct position *pos, u32 *move_info, u32 *undo_info);

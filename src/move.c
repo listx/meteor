@@ -5,6 +5,7 @@ u64 MOVES_Q[64];
 u64 MOVES_R[64];
 u64 MOVES_X[64];
 u64 MOVES_N[64];
+u64 ATTACKS_P[2][64];
 
 u32 BITS_SQ1		= 0x3fUL << SHF_SQ1;
 u32 BITS_SQ2		= 0x3fUL << SHF_SQ2;
@@ -67,6 +68,19 @@ void init_bitmasks_moves()
 				} else
 					MOVES_X[sq1] |= BIT[sq2];
 			}
+		}
+	}
+}
+
+void init_pawn_attacks()
+{
+	int us, sq, r;
+	for (us = W; us != COLOR_NONE; us++) {
+		for (sq = A1; sq != SQ_NONE; sq++) {
+			ATTACKS_P[us][sq] = 0x0ULL;
+			r = rank_from(sq);
+			if (rel_rank(us, r) < RANK_8)
+				ATTACKS_P[us][sq] = MOVES_X[sq] & BIT_RANK[r + (us == W ? 1 : -1)];
 		}
 	}
 }
