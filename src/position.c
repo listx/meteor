@@ -491,7 +491,7 @@ void disp_pos(struct position *pos)
 	printf("     a   b   c   d   e   f   g   h\n");
 
 	/* Side to move */
-	printf("Side to move: %s\n", (pos->info & BIT_TURN) ? "Black" : "White");
+	printf("\nSide to move: %s\n", (pos->info & BIT_TURN) ? "Black" : "White");
 	/* Castling rights */
 	printf("Castling rights:\n");
 	printf("  White: ");
@@ -523,22 +523,12 @@ void disp_pos(struct position *pos)
 	/* En passant (true EP shown only, not "EP" square from FEN) */
 	if (pos->info & BITS_EP_SQ) {
 		sq = (pos->info & BITS_EP_SQ) >> SHF_EP_SQ;
-		printf("En Passant Square: ");
+		printf("En Passant square: ");
 		if (sq != SQ_NONE)
 			printf("%s\n", sq_to_str(sq, sq_str));
 		else
 			printf("None\n");
 	}
-
-	/* Debugging data */
-	/**********************************/
-	/* printf("pos->pieces[W]:\n");   */
-	/* disp_bitboard(pos->pieces[W]); */
-	/* printf("pos->pieces[B]:\n");   */
-	/* disp_bitboard(pos->pieces[B]); */
-	/* printf("pos->occupied:\n");    */
-	/* disp_bitboard(pos->occupied);  */
-	/**********************************/
 }
 
 /* For debugging */

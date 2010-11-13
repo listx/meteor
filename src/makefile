@@ -9,10 +9,11 @@ CFLAGS += -march=native
 CFLAGS += -pipe
 # Debugging symbols
 #CFLAGS += -g -O0
-OBJECTS = io.o main.o move.o movegen.o position.o test.o types.o
+LFLAGS += -lrt
+OBJECTS = io.o main.o move.o movegen.o position.o test.o time.o types.o
 
 meteor : $(OBJECTS)
-		$(CC) $(CFLAGS) $(OBJECTS) -o meteor
+		$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) -o meteor
 
 %.o : %.c
 		$(CC) $(CFLAGS) -c $<

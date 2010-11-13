@@ -16,6 +16,7 @@ void test_perft_display(struct position *pos, int plydepth)
 	char sfen[100] = {'\0'};
 	int i, j;
 	u64 subnodes, nodes;
+	u64 t1, t2, t3;
 	nodes = 0;
 	subnodes = 0;
 	fmn = FULL_MOVE_NUMBER;
@@ -37,10 +38,10 @@ void test_perft_display(struct position *pos, int plydepth)
 		move_undo(pos, &mlist[i].info, &undo_info);
 	}
 
-	printf("Finding all moves to plydepth %d\n", plydepth);
+	printf("\nCounting all nodes to plydepth %d\n", plydepth);
 	printf("Found %d moves from initial position\n\n", moves_initial);
 	printf("no. move pmv pcp ppr mvtyp chk sfen of child node (plydepth %d)\n", plydepth - 1);
-        printf("--- ---- --- --- --- ----- --- ---------------------------------------\n");
+        printf("--- ---- --- --- --- ----- --- -------------------------------------------------\n");
 
 	if (plydepth == 1) {
 		for (i = 0; i < moves_initial; i++, pos->checkers = 0x0ULL) {
@@ -72,6 +73,7 @@ void test_perft_display(struct position *pos, int plydepth)
 			move_undo(pos, &mlist[i].info, &undo_info);
 		}
 	} else {
+		t1 = get_time(); /* record time */
 		/*
 		 * If plydepth > 1, then try out each move, recursively, for
 		 * until depth is 0 (or checkmate) --- and report back the total
@@ -108,8 +110,15 @@ void test_perft_display(struct position *pos, int plydepth)
 			move_undo(pos, &mlist[i].info, &undo_info);
 			nodes += subnodes;
 		}
-
-		printf("\nTotal nodes at plydepth %d: %"PRIu64"\n", plydepth, nodes);
+		t2 = get_time();
+		t3 = t2 - t1;
+		printf("\nNodes: %"PRIu64"\n", nodes);
+		if (t3) {
+			printf("Time: ");
+			time_pretty(t3);
+			printf("Knps: %"PRIu64"\n", nodes/t3/10);
+		}
+		printf("\n");
 	}
 }
 
