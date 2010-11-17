@@ -24,18 +24,17 @@ int main(int argc, char **argv)
 
         /* Program options */
 	struct option longopts[] = {
-		{"help",	no_argument,		NULL,	'h'},
-		{"version",	no_argument,		NULL,	'v'},
-		{"sfen",	required_argument,	NULL,	's'},
-		{"depth",	required_argument,	NULL,	'd'},
-		{"perft",	no_argument,	NULL,	MODE_PERFT},
+		{"help",	0,	NULL,	'h'},
+		{"version",	0,	NULL,	'v'},
+		{"sfen",	1,	NULL,	's'},
+		{"perft",	1,	NULL,	MODE_PERFT},
 		{0,0,0,0}
 	};
 
 	if (argc == 1)
 		disp_help();
 
-	while ((o = getopt_long(argc, argv, "hvps:d:", longopts, NULL)) != -1) {
+	while ((o = getopt_long(argc, argv, "hvp:s:", longopts, NULL)) != -1) {
 		switch (o) {
 		case 'h':
 			disp_help();
@@ -46,11 +45,9 @@ int main(int argc, char **argv)
 		case 's':
 			sfen = optarg;
 			break;
-		case 'd':
-			plydepth = atoi(optarg);
-			break;
 		case MODE_PERFT:
 			mode = MODE_PERFT;
+			plydepth = atoi(optarg);
 			break;
 		default:
 			error("unclean arguments\n");
