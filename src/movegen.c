@@ -675,9 +675,12 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 		/* declare that rook's starting square (sq2) is empty only if if
 		 * king's destination square is the same as sq2
 		 */
-                if (sq2 != sq3) {
-                        pos->piece_on[sq2] = PIECE_NONE;
-                }
+		if (sq2 != sq3)
+			pos->piece_on[sq2] = PIECE_NONE;
+		else {
+			pos->pieces[us] |= BIT[sq2];
+			pos->occupied |= BIT[sq2];
+		}
                 /* Ensure that the rook ends up on either F1 (if O-O) or C1 (if
 		 * O-O-O)
 		 */
@@ -835,8 +838,11 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 		 * It's possible now that sq1 == sq4, in which case, we can only
 		 * allow pos->piece_on[sq4] == PIECE_NONE if sq1 != sq4.
 		 */
-		if (sq4 != sq1) {
+		if (sq4 != sq1)
 			pos->piece_on[sq4] = PIECE_NONE;
+		else {
+			pos->pieces[us] |= BIT[sq4];
+			pos->occupied |= BIT[sq4];
 		}
 
 		/*
