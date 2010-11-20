@@ -89,6 +89,6 @@ void disp_help()
 
 void disp_ver()
 {
-	printf("Meteor 0.02\n");
+	printf("Meteor 0.03\n");
 	exit(0);
 }
