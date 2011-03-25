@@ -54,7 +54,7 @@ void import_sfen(const char *str, struct position *pos)
 			j++;
 	}
 	if (j != 5)
-		fatal("Invalid number of fields");
+		fatal("sfen: Invalid number of fields");
 
 	/* Piece placement */
 	token = strtok(tokenize_me, " ");
@@ -94,7 +94,7 @@ void import_sfen(const char *str, struct position *pos)
 		case 'p': color = B; piece = P; break;
 		case '/': piece = PIECE_NONE; break;
 		default:
-			fatal("Invalid character `%c' in piece placement info", token[idx]);
+			fatal("sfen: Invalid character `%c' in piece placement info", token[idx]);
 		}
 		if (piece != PIECE_NONE) {
 			pos->piece[color][piece] |= BIT[((rank * 8) + file)];
@@ -126,12 +126,12 @@ void import_sfen(const char *str, struct position *pos)
 
 	/* There must be 1 king present for each color */
 	if (pos->piece[W][K] == 0x0ULL)
-		fatal("White king missing");
+		fatal("sfen: White king missing");
 	if (pos->piece[B][K] == 0x0ULL)
-		fatal("Black king missing");
+		fatal("sfen: Black king missing");
 	/* Kings may not be adjacent to each other */
 	if (MOVES_K[sq_from_bit(&pos->piece[W][K])] & pos->piece[B][K])
-		fatal("Kings are adjacent");
+		fatal("sfen: Kings are adjacent");
 
 	/* Side to move (0 is White, 1 is Black) */
 	idx = 0;
@@ -164,7 +164,7 @@ void import_sfen(const char *str, struct position *pos)
 
 	token = strtok(NULL, " ");
 	if (strlen(token) > 4)
-		fatal("castling right information exceeded 4 characters");
+		fatal("sfen: castling right information exceeded 4 characters");
 	if (token[0] != '-') {
 		for (i = 0; i < strlen(token); i++) {
 			switch (token[i]) {
@@ -211,7 +211,7 @@ void import_sfen(const char *str, struct position *pos)
 				}
 				break;
 			default:
-				fatal("Invalid castling file `%c'", token[i]);
+				fatal("sfen: Invalid castling file `%c'", token[i]);
 			}
 		}
 	}
@@ -219,7 +219,7 @@ void import_sfen(const char *str, struct position *pos)
 	/* En passant square (only acknowledge actual en passant opportunities) */
 	token = strtok(NULL, " ");
 	if (strlen(token) > 2) {
-		fatal("En passant square field `%s' exceeds 2 characters", token);
+		fatal("sfen: En passant square field `%s' exceeds 2 characters", token);
 	}
 	if (token[0] != '-') {
 		switch (token[0]) {
@@ -232,13 +232,13 @@ void import_sfen(const char *str, struct position *pos)
 		case 'g': file = FILE_G; break;
 		case 'h': file = FILE_H; break;
 		default:
-			fatal("Invalid character `%c'", token[0]);
+			fatal("sfen: Invalid character `%c'", token[0]);
 		}
 		switch (token[1]) {
 		case '3': rank = RANK_3; break;
 		case '6': rank = RANK_6; break;
 		default:
-			fatal("Invalid character `%c'", token[0]);
+			fatal("sfen: Invalid character `%c'", token[0]);
 		}
 		/* Check if we can in fact make an EP capture */
 		ep_pawn_rank = (rank == RANK_3) ? RANK_4 : RANK_5;

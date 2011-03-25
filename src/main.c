@@ -1,5 +1,7 @@
 #include "test.h"
 
+#define METEOR_VERSION "0.03"
+
 enum {
 	MODE_PERFT = 256, /* outside of the ASCII character map */
 	MODE_NONE
@@ -7,6 +9,7 @@ enum {
 
 void disp_help();
 void disp_ver();
+void initialize();
 
 int main(int argc, char **argv)
 {
@@ -55,10 +58,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	init_bitmasks();
-	init_bitmasks_moves();
-	init_pawn_attacks();
-	init_attacks();
+	(mode == MODE_NONE) ? printf("Nothing to do.\n") : initialize();
 
 	switch (mode) {
 	case MODE_PERFT:
@@ -68,9 +68,7 @@ int main(int argc, char **argv)
 			error("perft: need sfen and plydepth");
 
 		break;
-	default:
-		printf("Nothing to do.\n");
-		break;
+	default: break;
 	}
 
         return 0;
@@ -79,16 +77,23 @@ int main(int argc, char **argv)
 void disp_help()
 {
 	printf("Usage: meteor [OPTIONS]\n");
-	printf("  -h, --help        Show help message\n");
-	printf("  -v, --version     Show version\n");
-	printf("  -d, --depth       Set plydepth\n");
-	printf("  -s, --sfen        Set Shredder-FEN\n");
-	printf("      --perft       Do perft\n");
+	printf("  -h --help       Show help message\n");
+	printf("  -v --version    Show version\n");
+	printf("  -s --sfen       Set Shredder-FEN (use this with --perft NUM)\n");
+	printf("     --perft NUM  Do perft up to ply depth NUM\n");
 	exit(0);
 }
 
 void disp_ver()
 {
-	printf("Meteor 0.03\n");
+	printf("meteor version %s\n", METEOR_VERSION);
 	exit(0);
+}
+
+void initialize()
+{
+	init_bitmasks();
+	init_bitmasks_moves();
+	init_pawn_attacks();
+	init_attacks();
 }
