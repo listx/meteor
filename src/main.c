@@ -77,10 +77,10 @@ int main(int argc, char **argv)
 void disp_help()
 {
 	printf("Usage: meteor [OPTIONS]\n");
-	printf("  -h --help       Show help message\n");
-	printf("  -v --version    Show version\n");
-	printf("  -s --sfen       Set Shredder-FEN (use this with --perft NUM)\n");
-	printf("     --perft NUM  Do perft up to ply depth NUM\n");
+	printf("  -h --help           Show help message\n");
+	printf("  -v --version        Show version\n");
+	printf("  -s --sfen STRING    Set Shredder-FEN (use this with --perft NUM)\n");
+	printf("     --perft NUM      Do perft up to ply depth NUM\n");
 	exit(0);
 }
 
