@@ -12,9 +12,6 @@ CFLAGS += -pipe
 LFLAGS += -lrt
 OBJECTS = io.o main.o move.o movegen.o position.o test.o time.o types.o
 
-srclist:
-	$(shell find -type f -regex ".*\.\(c\|h\)" > srclist)
-
 meteor : $(OBJECTS)
 		$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) -o meteor
 
@@ -23,3 +20,6 @@ meteor : $(OBJECTS)
 
 clean:
 		$(RM) *.o meteor
+
+srclist:
+	$(shell find -type f -regex ".*\.\(c\|h\)" > srclist)
