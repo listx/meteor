@@ -12,5 +12,6 @@
 
 extern void error(const char *str, ...);
 extern void fatal(const char *str, ...);
+extern void dbg(const char *str, ...);
 
 #endif

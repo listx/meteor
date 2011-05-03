@@ -246,4 +246,6 @@ extern void disp_pos(struct position *pos);
 extern void disp_bitboard(u64 bb);
 void set_pieces_rank(int rank, struct position *pos, char *pieces);
 
+extern char *disp_color(u64 *pos_info);
+
 #endif

@@ -14,11 +14,12 @@ void initialize();
 int main(int argc, char **argv)
 {
 	int o, mode;
-	int plydepth;
+	int plydepth, threads;
 	char *sfen;
 
 	mode = MODE_NONE;
-	plydepth = 0;
+	plydepth = 2;
+	threads = sysconf(_SC_NPROCESSORS_ONLN);
         sfen = NULL;
 
 	/* Disable I/O buffering */
@@ -29,6 +30,7 @@ int main(int argc, char **argv)
 	struct option longopts[] = {
 		{"help",	0,	NULL,	'h'},
 		{"version",	0,	NULL,	'v'},
+		{"threads",	1,	NULL,	't'},
 		{"sfen",	1,	NULL,	's'},
 		{"perft",	1,	NULL,	MODE_PERFT},
 		{0,0,0,0}
@@ -37,7 +39,7 @@ int main(int argc, char **argv)
 	if (argc == 1)
 		disp_help();
 
-	while ((o = getopt_long(argc, argv, "hv:s:", longopts, NULL)) != -1) {
+	while ((o = getopt_long(argc, argv, "hv:s:t:", longopts, NULL)) != -1) {
 		switch (o) {
 		case 'h':
 			disp_help();
@@ -48,9 +50,14 @@ int main(int argc, char **argv)
 		case 's':
 			sfen = optarg;
 			break;
+		case 't':
+			if (atoi(optarg) <= threads)
+				threads = atoi(optarg);
+			break;
 		case MODE_PERFT:
 			mode = MODE_PERFT;
-			plydepth = atoi(optarg);
+			if (atoi(optarg) > plydepth)
+				plydepth = atoi(optarg);
 			break;
 		default:
 			error("unclean arguments\n");
@@ -64,7 +71,7 @@ int main(int argc, char **argv)
 	switch (mode) {
 	case MODE_PERFT:
 		if (sfen && plydepth)
-			test_perft(sfen, plydepth);
+			test_perft(sfen, plydepth, threads);
 		else
 			error("perft: need sfen and plydepth");
 
@@ -83,7 +90,8 @@ void disp_help()
 	printf("  -h --help           Show help message\n");
 	printf("  -v --version        Show version\n");
 	printf("  -s --sfen STRING    Set Shredder-FEN (use this with --perft NUM)\n");
-	printf("     --perft NUM      Do perft up to ply depth NUM\n");
+	printf("  -t --threads NUM    Use NUM threads\n");
+	printf("     --perft NUM      Do perft up to ply depth NUM (ignored if NUM < 2)\n");
 	exit(0);
 }
 

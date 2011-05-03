@@ -582,3 +582,8 @@ void set_pieces_rank(int rank, struct position *pos, char *pieces)
 	}
 	pieces[8] = '\0';
 }
+
+char *disp_color(u64 *pos_info)
+{
+	return (our_color(pos_info) ? "Black" : "White");
+}
