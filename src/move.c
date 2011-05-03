@@ -119,5 +119,8 @@ void disp_move(u32 *move_info)
 	case MOVE_PROM:
 		printf("prom%s ", piece_to_str(pp, sq_str));
 		break;
+	default:
+		printf(" ???? ");
+		break;
 	}
 }
