@@ -58,7 +58,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	(mode == MODE_NONE) ? printf("Nothing to do.\n") : initialize();
+	if (mode != MODE_NONE)
+		initialize();
 
 	switch (mode) {
 	case MODE_PERFT:
@@ -68,7 +69,9 @@ int main(int argc, char **argv)
 			error("perft: need sfen and plydepth");
 
 		break;
-	default: break;
+	default:
+		printf("Nothing to do.\n");
+		break;
 	}
 
         return 0;
