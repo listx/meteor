@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	if (argc == 1)
 		disp_help();
 
-	while ((o = getopt_long(argc, argv, "hv:s:t:", longopts, NULL)) != -1) {
+	while ((o = getopt_long(argc, argv, "hvs:t:", longopts, NULL)) != -1) {
 		switch (o) {
 		case 'h':
 			disp_help();
