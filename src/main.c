@@ -60,10 +60,14 @@ int main(int argc, char **argv)
 				plydepth = atoi(optarg);
 			break;
 		default:
-			error("unclean arguments\n");
+			fatal("unclean arguments\n");
 			break;
 		}
 	}
+
+	/* exit if there were any unrecognized arguments */
+	if (optind < argc)
+		fatal("unrecognize option: `%s'", argv[optind]);
 
 	if (mode != MODE_NONE)
 		initialize();
