@@ -5,9 +5,13 @@ pthread_cond_t wake;
 pthread_cond_t work_done;
 int *thread_id;
 int moves_initial;
+char sfen[100] = {'\0'};
+int sfen_maxlen;
+int fmn;
 
 struct work_unit {
 	struct position pos;
+	struct move m;
 	int plydepth;
 	u64 nodes;
 	bool in_progress;
@@ -28,8 +32,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 {
 	struct move mlist[256];
 	u32 undo_info;
-	int color, fmn, sfen_maxlen, i;
-	char sfen[100] = {'\0'};
+	int color, i;
 	u64 subnodes, nodes, t1, t2, t3;
 	nodes = 0;
 	subnodes = 0;
@@ -101,6 +104,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		wunit = malloc(sizeof(*wunit) * moves_initial);
 		for (i = 0; i < moves_initial; i++) {
 			memcpy(&wunit[i].pos, pos, sizeof(*pos));
+			memcpy(&wunit[i].m, &mlist[i], sizeof(*pos));
 			move_do(&wunit[i].pos, &mlist[i].info, &undo_info);
 			wunit[i].plydepth = plydepth - 1;
 			wunit[i].nodes = 0x0ULL;
@@ -134,6 +138,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		}
 
 		/* now that all work is done, display the results */
+		printf("\nSorted:\n");
 		for (i = 0; i < moves_initial; i++, pos->checkers = 0x0ULL) {
 			move_show_line(&wunit[i].pos, &mlist[i], i, sfen, sfen_maxlen, fmn);
 			printf("%"PRIu64"\n", wunit[i].nodes);
@@ -271,6 +276,10 @@ void idle_work_loop(int *thread_id)
 		pthread_mutex_lock(&lock);
 		wunit[i].complete = true;
 		dbg("thread %d finished a work unit", *thread_id);
+
+		move_show_line(&wunit[i].pos, &wunit[i].m, i, sfen, sfen_maxlen, fmn);
+		printf("%"PRIu64"\n", wunit[i].nodes);
+
 		pthread_cond_signal(&work_done);
 		pthread_mutex_unlock(&lock);
 	}
