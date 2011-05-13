@@ -1,6 +1,6 @@
 #include "test.h"
 
-#define METEOR_VERSION "0.04"
+#define METEOR_VERSION "0.1.0"
 
 enum {
 	MODE_PERFT = 256, /* outside of the ASCII character map */
