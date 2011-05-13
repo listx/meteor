@@ -3,6 +3,7 @@
 pthread_mutex_t lock;
 pthread_cond_t wake;
 pthread_cond_t work_done;
+pthread_t *pthread_id;
 int *thread_id;
 int moves_initial;
 char sfen[100] = {'\0'};
@@ -117,10 +118,15 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		init_threads(threads);
 		pthread_mutex_unlock(&lock);
 
-		/* now enter a loop; every time a wunit is complete, we check if
-		 * it's the last one completed; if so, we break out of this
-		 * loop; this way, we effectively wait until all work has been
+		/* now enter a loop; if a wunit is complete, we check if it's
+		 * the last one completed; if so, we break out of this loop;
+		 * this way, we effectively wait until all work has been
 		 * completed.
+		 *
+		 * NOTE: technically, the worker threads will contend for the
+		 * &lock mutex much more, which means that this infinite loops
+		 * will only really get exposure once or twice, even if there
+		 * are 50+ work units.
 		 */
 		for (;;) {
 			pthread_mutex_lock(&lock);
@@ -142,6 +148,17 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 	t3 = t2 - t1;
 
 	if (threads > 1) {
+		/* wait until all threads have exited completely (there is a
+		 * tiny gap between a thread completing its work, and actually
+		 * breaking out of its work loop and exiting cleanly; we wait
+		 * for that gap here)
+		 */
+
+		for (i = 0; i < threads; i++) {
+			pthread_join(pthread_id[i], NULL);
+			dbg("thread %d exited successfully\n", thread_id[i]);
+		}
+
 		/* now that all work is done, display the results */
 		printf("\nSorted:\n");
 		for (i = 0; i < moves_initial; i++, pos->checkers = 0x0ULL) {
@@ -149,6 +166,12 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 			printf("%"PRIu64"\n", wunit[i].nodes);
 			nodes += wunit[i].nodes;
 		}
+
+		/* release resources */
+		kill_thread_vars();
+		free(wunit);
+		free(thread_id);
+		free(pthread_id);
 	}
 
 	printf("\nNodes: %"PRIu64"\n", nodes);
@@ -158,11 +181,6 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		printf("Knps: %"PRIu64"\n", nodes/t3/10);
 	}
 	printf("\n");
-
-	/* release resources */
-	free(wunit);
-	free(thread_id);
-	kill_thread_vars();
 }
 
 void move_show_line(struct position *pos, struct move *mlist, int i, char *sfen, int sfen_maxlen, int fmn)
@@ -297,18 +315,13 @@ void init_threads(int threads)
 {
 	int i;
 	thread_id = malloc(sizeof(*thread_id) * threads);
+	pthread_id = malloc(sizeof(*pthread_id) * threads);
 
 	for (i = 0; i < threads; i++) {
 		thread_id[i] = i;
-		/* Create a new pthread_t variable for this thread */
-		static pthread_t pthread_id;
 		/* Create the thread */
-		pthread_create(&pthread_id, NULL, start_routine, (void*)&thread_id[i]);
+		pthread_create(&pthread_id[i], NULL, start_routine, (void*)&thread_id[i]);
 		dbg("thread %d created\n", thread_id[i]);
-
-		/* Detach the thread because we don't care about the thread's
-		 * exit status */
-		pthread_detach(pthread_id);
 	}
 }
 
