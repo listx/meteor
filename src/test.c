@@ -136,7 +136,12 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 			}
 			pthread_mutex_unlock(&lock);
 		}
+	}
 
+	t2 = get_time();
+	t3 = t2 - t1;
+
+	if (threads > 1) {
 		/* now that all work is done, display the results */
 		printf("\nSorted:\n");
 		for (i = 0; i < moves_initial; i++, pos->checkers = 0x0ULL) {
@@ -145,8 +150,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 			nodes += wunit[i].nodes;
 		}
 	}
-	t2 = get_time();
-	t3 = t2 - t1;
+
 	printf("\nNodes: %"PRIu64"\n", nodes);
 	if (t3) {
 		printf("Time: ");
