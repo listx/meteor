@@ -114,7 +114,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 
 		/* spawn worker threads */
 		pthread_mutex_lock(&lock);
-		init_threads(thread_id, threads);
+		init_threads(threads);
 		pthread_mutex_unlock(&lock);
 
 		/* now enter a loop; every time a wunit is complete, we check if
@@ -293,7 +293,7 @@ void idle_work_loop(int *thread_id)
 /* Wake up worker threads and put them in an idle loop; we use a condition
  * variable to wake them up and put them to work.
  */
-void init_threads(int *thread_id, int threads)
+void init_threads(int threads)
 {
 	int i;
 	thread_id = malloc(sizeof(*thread_id) * threads);
