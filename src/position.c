@@ -261,6 +261,9 @@ void import_sfen(const char *str, struct position *pos)
 	 */
 	token = strtok(NULL, " ");
 	FULL_MOVE_NUMBER = atoi(token);
+
+	/* release resources */
+	free(tokenize_me);
 }
 
 char *export_sfen(struct position *pos, char *str, int fmn)
