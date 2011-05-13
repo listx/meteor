@@ -157,6 +157,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 
 	/* release resources */
 	free(wunit);
+	free(thread_id);
 	kill_thread_vars();
 }
 
