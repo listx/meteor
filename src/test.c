@@ -306,3 +306,35 @@ void init_threads(int *thread_id, int threads)
 		pthread_detach(pthread_id);
 	}
 }
+
+void randk_verify()
+{
+	int i;
+	u64 x, n1, n2;
+	n1 = 13596816608992115578ULL;
+	n2 = 5033346742750153761ULL;
+
+	printf("Verifying the PRNG...\n");
+
+	/* Generate 10^9 B64MWC()s */
+	for (i = 0; i < 1000000000; i++)
+		x = B64MWC();
+	if (x == n1) {
+		printf("Test 1: B64MWC(): expected %"PRIu64", got %"PRIu64"\n", n1, x);
+		printf("Test 1: OK\n");
+	} else {
+		error("Test 1: B64MWC(): expected %"PRIu64", got %"PRIu64"", n1, x);
+		fatal("Test 1: FAIL");
+	}
+
+	/* Generate 10^9 KISSes: */
+	for (i = 0; i < 1000000000; i++)
+		x = randk();
+	if (x == n2) {
+		printf("Test 2: randk(): expected %"PRIu64", got %"PRIu64"\n", n2, x);
+		printf("Test 2: OK\n");
+	} else {
+		error("Test 2: randk(): expected %"PRIu64", got %"PRIu64"", n2, x);
+		fatal("Test 2: FAIL");
+	}
+}

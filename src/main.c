@@ -4,6 +4,7 @@
 
 enum {
 	MODE_PERFT = 256, /* outside of the ASCII character map */
+	MODE_KISST = 257,
 	MODE_NONE
 };
 
@@ -33,6 +34,7 @@ int main(int argc, char **argv)
 		{"threads",	1,	NULL,	't'},
 		{"sfen",	1,	NULL,	's'},
 		{"perft",	1,	NULL,	MODE_PERFT},
+		{"kisst",	0,	NULL,	MODE_KISST},
 		{0,0,0,0}
 	};
 
@@ -59,6 +61,9 @@ int main(int argc, char **argv)
 			if (atoi(optarg) > plydepth)
 				plydepth = atoi(optarg);
 			break;
+		case MODE_KISST:
+			mode = MODE_KISST;
+			break;
 		default:
 			fatal("unclean arguments\n");
 			break;
@@ -80,6 +85,10 @@ int main(int argc, char **argv)
 			error("perft: need sfen and plydepth");
 
 		break;
+	case MODE_KISST:
+		randk_seed(); /* initialize PRNG with default seed */
+		randk_verify();
+		break;
 	default:
 		printf("Nothing to do.\n");
 		break;
@@ -96,6 +105,7 @@ void disp_help()
 	printf("  -s --sfen STRING    Set Shredder-FEN (use this with --perft NUM)\n");
 	printf("  -t --threads NUM    Use NUM threads\n");
 	printf("     --perft NUM      Do perft up to ply depth NUM (ignored if NUM < 2)\n");
+	printf("     --kisst          Verify if meteor's PRNG is working correctly.\n");
 	exit(0);
 }
 
