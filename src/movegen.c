@@ -581,16 +581,25 @@ u8 movegen_slider(struct position *pos, struct move *mlist, u8 *moves, int us, u
 					attacks = attacks_Q(sq1, pos->occupied);
 					break;
 				default:
+					attacks = 0x0ULL; /* disable compiler warning */
+					break;
+				}
+				switch (piece_slider) {
+				case R:
+				case X:
+				case Q:
+					*targets = attacks & pos->checkers;
+					if (pos->checkers & sliders(!us, pos))
+						*targets |= attacks & BITS_Q[sqk][sq3];
+					while (*targets) {
+						sq2 = pop_LSB(targets);
+						pc = pos->piece_on[sq2];
+						mlist[(*moves)++].info = move_create_normal(sq1, sq2, piece_slider, pc);
+					}
+					break;
+				default:
 					assert(0);
 				}
-                                *targets = attacks & pos->checkers;
-                                if (pos->checkers & sliders(!us, pos))
-                                        *targets |= attacks & BITS_Q[sqk][sq3];
-                                while (*targets) {
-                                        sq2 = pop_LSB(targets);
-                                        pc = pos->piece_on[sq2];
-                                        mlist[(*moves)++].info = move_create_normal(sq1, sq2, piece_slider, pc);
-                                }
                         }
                 }
         }
@@ -599,8 +608,9 @@ u8 movegen_slider(struct position *pos, struct move *mlist, u8 *moves, int us, u
 
 void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 {
-	int us, sq1, sq2, sq3, sq4, pm, pc, mt;
+	int us, sq1, sq2, sq3, sq4, pm, pc, pp, mt;
 
+	pos->zkey ^= zob.turn;
 	*undo_info = 0x0;
 	/* grab the lowest 32 bits of pos->info, because it holds data on
 	 * everything we want */
@@ -610,13 +620,19 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 	sq2 = move_sq2(move_info);
 	pm = mpiece(move_info);
 	pc = cpiece(move_info);
+	pp = ppiece(move_info);
 	mt = move_type(move_info);
+
+#ifdef DEBUG
+	verify_pieces(pos);
+#endif
 
 	/* take care of sq1 */
 	pos->piece[us][pm] &= ~BIT[sq1];
 	pos->pieces[us] &= ~BIT[sq1];
 	pos->occupied &= ~BIT[sq1];
 	pos->piece_on[sq1] = PIECE_NONE;
+	pos->zkey ^= zob.piece[us][pm][sq1];
 
 	switch (mt) {
 	case MOVE_NORMAL:
@@ -637,6 +653,7 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 		pos->pieces[us] |= BIT[sq2];
 		pos->occupied |= BIT[sq2];
 		pos->piece_on[sq2] = pm;
+		pos->zkey ^= zob.piece[us][pm][sq2];
 
 		if (pc == PIECE_NONE) {
 			if (pm == P)
@@ -646,6 +663,7 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 		} else {
 			pos->piece[!us][pc] &= ~BIT[sq2];
 			pos->pieces[!us] &= ~BIT[sq2];
+			pos->zkey ^= zob.piece[!us][pc][sq2];
 			/* don't (pos->occupied &= ~BIT[sq2]) because sq2 is
 			 * occupied by our piece that just moved there
 			 */
@@ -663,6 +681,7 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->pieces[us] |= BIT[sq3];
                 pos->occupied |= BIT[sq3];
                 pos->piece_on[sq3] = K;
+		pos->zkey ^= zob.piece[us][K][sq3];
 
                 /* Take care of rook's new square */
                 sq4 = sq_from(((mt == MOVE_OO) ? FILE_F : FILE_D), rel_rank(us, RANK_1));
@@ -672,6 +691,8 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->piece[us][R] &= ~BIT[sq2];
                 pos->pieces[us] &= ~BIT[sq2];
                 pos->occupied &= ~BIT[sq2];
+		pos->zkey ^= zob.piece[us][R][sq2];
+
 		/* declare that rook's starting square (sq2) is empty only if if
 		 * king's destination square is the same as sq2
 		 */
@@ -688,6 +709,8 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->pieces[us] |= BIT[sq4];
                 pos->occupied |= BIT[sq4];
                 pos->piece_on[sq4] = R;
+		pos->zkey ^= zob.piece[us][R][sq4];
+
                 /* Castling once means no more castling rights */
                 revoke_OO_OOO(us, &pos->info);
                 set_ep_sq(SQ_NONE, &pos->info);
@@ -698,6 +721,7 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->pieces[us] |= BIT[sq2];
                 pos->occupied |= BIT[sq2];
                 pos->piece_on[sq2] = P;
+		pos->zkey ^= zob.piece[us][P][sq2];
                 set_ep_sq(sq2 + (us ? 8 : -8), &pos->info);
                 reset_FMR(&pos->info);
 		break;
@@ -708,12 +732,14 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->pieces[!us] &= ~BIT[sq3];
                 pos->occupied &= ~BIT[sq3];
                 pos->piece_on[sq3] = PIECE_NONE;
+		pos->zkey ^= zob.piece[!us][P][sq3];
 
                 set_ep_sq(SQ_NONE, &pos->info);
                 pos->piece[us][P] |= BIT[sq2];
                 pos->pieces[us] |= BIT[sq2];
                 pos->occupied |= BIT[sq2];
                 pos->piece_on[sq2] = P;
+		pos->zkey ^= zob.piece[us][P][sq2];
                 reset_FMR(&pos->info);
                 break;
 	case MOVE_PROM:
@@ -722,10 +748,12 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
                 pos->pieces[us] |= BIT[sq2];
                 pos->occupied |= BIT[sq2];
                 pos->piece_on[sq2] = ppiece(move_info);
+		pos->zkey ^= zob.piece[us][pp][sq2];
                 reset_FMR(&pos->info);
                 if (pc != PIECE_NONE) {
                         pos->piece[!us][pc] &= ~BIT[sq2];
                         pos->pieces[!us] &= ~BIT[sq2];
+			pos->zkey ^= zob.piece[!us][pc][sq2];
 			/* if pc is rook, check if it was a virgin rook and
 			 * revoke appropriate castling right
 			 */
@@ -736,15 +764,32 @@ void move_do(struct position *pos, u32 *move_info, u32 *undo_info)
 	default:
 		break;
 	}
+	if (casr_uinfo(undo_info) != casr(&pos->info)) {
+		pos->zkey ^= zob.casr[casr(&pos->info)];
+		pos->zkey ^= zob.casr[casr_uinfo(undo_info)];
+	}
+	if (ep_sq_uinfo(undo_info) != ep_sq(&pos->info)) {
+		pos->zkey ^= zob.ep_sq[ep_sq_uinfo(undo_info)];
+		pos->zkey ^= zob.ep_sq[ep_sq(&pos->info)];
+	}
 
 	swap_turn(&pos->info);
 }
 
 void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 {
-	int us, sq1, sq2, sq3, sq4, r, pm, pc, mt;
+	int us, sq1, sq2, sq3, sq4, r, pm, pc, pp, mt;
 
+	pos->zkey ^= zob.turn;
 	swap_turn(&pos->info);
+	if (casr_uinfo(undo_info) != casr(&pos->info)) {
+		pos->zkey ^= zob.casr[casr(&pos->info)];
+		pos->zkey ^= zob.casr[casr_uinfo(undo_info)];
+	}
+	if (ep_sq_uinfo(undo_info) != ep_sq(&pos->info)) {
+		pos->zkey ^= zob.ep_sq[ep_sq(&pos->info)];
+		pos->zkey ^= zob.ep_sq[ep_sq_uinfo(undo_info)];
+	}
 	/* clear bottom 32 bits of pos->info */
 	pos->info &= 0xffffffff00000000ULL;
 	/* restore bottom 32 bits of old pos->info */
@@ -757,6 +802,7 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 	sq4 = SQ_NONE;
 	pm = mpiece(move_info);
 	pc = cpiece(move_info);
+	pp = ppiece(move_info);
 	mt = move_type(move_info);
 
 	/* restore sq1 */
@@ -764,6 +810,7 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 	pos->pieces[us] |= BIT[sq1];
 	pos->occupied |= BIT[sq1];
 	pos->piece_on[sq1] = pm;
+	pos->zkey ^= zob.piece[us][pm][sq1];
 
 	switch (mt) {
 	case MOVE_NORMAL:
@@ -773,6 +820,7 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 		pos->piece[us][pm] &= ~BIT[sq2];
 		pos->pieces[us] &= ~BIT[sq2];
 		pos->occupied &= ~BIT[sq2];
+		pos->zkey ^= zob.piece[us][pm][sq2];
 
 		if (pc == PIECE_NONE) {
 			pos->piece_on[sq2] = PIECE_NONE;
@@ -782,11 +830,15 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 			pos->pieces[!us] |= BIT[sq2];
 			pos->occupied |= BIT[sq2];
 			pos->piece_on[sq2] = pc;
+			pos->zkey ^= zob.piece[!us][pc][sq2];
 		}
 
 		/* if move was a promotion, then banish the promoted-to piece */
-		if (mt == MOVE_PROM)
+		if (mt == MOVE_PROM) {
 			pos->piece[us][ppiece(move_info)] &= ~BIT[sq2];
+			pos->zkey ^= zob.piece[us][pm][sq2];
+			pos->zkey ^= zob.piece[us][pp][sq2];
+		}
 		break;
 	case MOVE_EP_CAPTURE:
 		/* resurrect the enemy pawn */
@@ -795,6 +847,7 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 		pos->pieces[!us] |= BIT[sq3];
 		pos->occupied |= BIT[sq3];
 		pos->piece_on[sq3] = P;
+		pos->zkey ^= zob.piece[!us][P][sq3];
 		/* s2 must be cleared, since a pawn in an ep capture _moves_ to
 		 * an empty square (and captures from a different square)
 		 */
@@ -802,6 +855,7 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 		pos->pieces[us] &= ~BIT[sq2];
 		pos->occupied &= ~BIT[sq2];
 		pos->piece_on[sq2] = PIECE_NONE;
+		pos->zkey ^= zob.piece[us][P][sq2];
 		break;
 	case MOVE_OO:
 	case MOVE_OOO:
@@ -830,17 +884,22 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 			pos->pieces[us] &= ~BIT[sq3];
 			pos->occupied &= ~BIT[sq3];
 			pos->piece_on[sq3] = PIECE_NONE;
+			pos->zkey ^= zob.piece[us][K][sq3];
+		} else {
+			pos->zkey ^= zob.piece[us][K][sq1];
 		}
+
 		pos->piece[us][R] &= ~BIT[sq4];
 		pos->pieces[us] &= ~BIT[sq4];
 		pos->occupied &= ~BIT[sq4];
+		pos->zkey ^= zob.piece[us][R][sq4];
 		/*
 		 * It's possible now that sq1 == sq4, in which case, we can only
 		 * allow pos->piece_on[sq4] == PIECE_NONE if sq1 != sq4.
 		 */
-		if (sq4 != sq1)
+		if (sq4 != sq1) {
 			pos->piece_on[sq4] = PIECE_NONE;
-		else {
+		} else {
 			pos->pieces[us] |= BIT[sq4];
 			pos->occupied |= BIT[sq4];
 		}
@@ -853,7 +912,12 @@ void move_undo(struct position *pos, u32 *move_info, u32 *undo_info)
 		pos->pieces[us] |= BIT[sq2];
 		pos->occupied |= BIT[sq2];
 		pos->piece_on[sq2] = R;
+		pos->zkey ^= zob.piece[us][R][sq2];
 		break;
 	default: break;
 	}
+
+#ifdef DEBUG
+	verify_pieces(pos);
+#endif
 }

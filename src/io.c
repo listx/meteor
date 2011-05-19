@@ -25,7 +25,7 @@ void fatal(const char *str, ...)
 void dbg(const char *str, ...)
 {
 	va_list arg;
-#ifdef NDEBUG
+#ifdef DEBUG
 	printf("debug: ");
 	va_start(arg, str);
 	vfprintf(stdout, str, arg);

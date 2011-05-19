@@ -9,6 +9,10 @@ int moves_initial;
 char sfen[100] = {'\0'};
 int sfen_maxlen;
 int fmn;
+u64 perft_hits = 0;
+u64 perft_queries = 0;
+int test_zob;
+int hashMB;
 
 struct work_unit {
 	struct position pos;
@@ -34,12 +38,21 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 	struct move mlist[256];
 	u32 undo_info;
 	int color, i;
-	u64 subnodes, nodes, t1, t2, t3;
+	u64 subnodes, nodes, zkey, t1, t2, t3;
+	struct tt_perft tt;
 	nodes = 0;
 	subnodes = 0;
 	fmn = FULL_MOVE_NUMBER;
 	color = pos->info & BIT_TURN;
 	moves_initial = movegen(pos, mlist, color);
+
+	if (hashMB && !test_zob) {
+		printf("\nInitializing hashtable...");
+		init_tt_perft(&tt, hashMB);
+		printf("OK (%"PRIu32" bytes (%"PRIu32"MB), %u entries (%u buckets))\n", tt_hash_size(&tt), (tt_hash_size(&tt) >> 20), tt.entries, tt.entries * 4);
+	} else {
+		printf("\nHashtable disabled\n");
+	}
 
 	/* look at all the possible sfen's that result, and determine the
 	 * longest one (so that we can format our output better below
@@ -57,6 +70,8 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 	}
 
 	printf("\nCounting all nodes to plydepth %d\n", plydepth);
+	if (test_zob)
+		printf("Testing zobrist key mechanism\n");
 	printf("Threads: %d\n", threads);
 	printf("Found %d moves from initial position\n\n", moves_initial);
 	if (!moves_initial) {
@@ -75,14 +90,27 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		 * nodecount for each move
 		 */
 		for (i = 0; i < moves_initial; i++, pos->checkers = 0x0ULL) {
+			zkey = pos->zkey;
 			move_do(pos, &mlist[i].info, &undo_info);
 			move_show_line(pos, &mlist[i], i, sfen, sfen_maxlen, fmn);
 
 			/* Recurse into this move, up to plydepth times. */
-			subnodes = perft(pos, plydepth - 1);
+			if (test_zob) {
+				subnodes = perft_zob(pos, plydepth - 1);
+			} else {
+				if (hashMB)
+					subnodes = perft_hash(pos, plydepth - 1, &tt);
+				else
+					subnodes = perft(pos, plydepth - 1);
+			}
 
 			printf("%"PRIu64"\n", subnodes);
 			move_undo(pos, &mlist[i].info, &undo_info);
+			if (zkey != pos->zkey) {
+				error("zkey mismatch\n");
+				disp_pos(pos);
+				assert(0);
+			}
 			nodes += subnodes;
 		}
 	} else {
@@ -180,6 +208,16 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		time_pretty(t3);
 		printf("Knps: %"PRIu64"\n", nodes/t3/10);
 	}
+	if (hashMB && !test_zob) {
+		printf("Hash access: ");
+		if (perft_queries)
+			printf("%.2f%%", (long)perft_hits/(double)perft_queries * 100);
+			printf(" (%"PRIu64" queries, %"PRIu64" hits, %"PRIu64" writes)\n", perft_queries, perft_hits, tt.writes);
+		free_tt(&tt);
+	}
+	if (test_zob) {
+		printf("Zobrist key mechanism OK\n");
+	}
 	printf("\n");
 }
 
@@ -227,6 +265,76 @@ u64 perft(struct position *pos, int plydepth)
                 return moves;
         }
         return nodes;
+}
+
+u64 perft_zob(struct position *pos, int plydepth)
+{
+	u64 nodes = 0x0ULL;
+	int moves, i;
+	struct move mlist[256];
+	u32 undo_info;
+	u64 zkey;
+        moves = movegen(pos, mlist, our_color(&pos->info));
+        if (plydepth > 1) {
+                for (i = 0; i < moves; i++) {
+			zkey = pos->zkey;
+			move_do(pos, &mlist[i].info, &undo_info);
+                        nodes += perft(pos, plydepth - 1);
+			move_undo(pos, &mlist[i].info, &undo_info);
+			if (zkey != pos->zkey) {
+				assert(0);
+			}
+                }
+        } else {
+                return moves;
+        }
+        return nodes;
+}
+
+u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
+{
+	u64 nodes = 0x0ULL;
+	int moves, i;
+	struct move mlist[256];
+	u32 undo_info;
+	struct tt_perft_bucket *bucket;
+	u64 zkey;
+
+	/* Query the hashtable for an existing bucket under the zkey entry */
+	bucket = get_bucket(&pos->zkey, &plydepth, tt);
+	perft_queries++;
+
+	/* If a bucket is found, return the value from the stored variale */
+	if (bucket != NULL) {
+		perft_hits++;
+		return get_nodes(&bucket->info);
+	}
+
+        moves = movegen(pos, mlist, our_color(&pos->info));
+        if (plydepth > 1) {
+                for (i = 0; i < moves; i++) {
+			zkey = pos->zkey;
+			move_do(pos, &mlist[i].info, &undo_info);
+                        nodes += perft_hash(pos, plydepth - 1, tt);
+			move_undo(pos, &mlist[i].info, &undo_info);
+			if (zkey != pos->zkey) {
+				assert(0);
+			}
+                }
+
+		/* Store calculated data into hashtable */
+		update_entry(&pos->zkey, &nodes, &plydepth, tt);
+                return nodes;
+        }
+
+	/* Store the number of nodes for depth 1, so that we don't have to run
+	 * the expensive movegen() function the next time we call this function
+	 * again for depth 1
+	 */
+	int depth1 = 1;
+	u64 m = moves;
+	update_entry(&pos->zkey, &m, &depth1, tt);
+	return moves;
 }
 
 /* Initialize mutexes and condition variables */

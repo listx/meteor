@@ -1,6 +1,7 @@
 #ifndef MOVEGEN_H
 #define MOVEGEN_H
 
+#include "hash.h"
 #include "io.h"
 #include "types.h"
 #include "position.h"

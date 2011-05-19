@@ -27,7 +27,7 @@ void import_sfen(const char *str, struct position *pos)
 	unsigned int bytes;
 	char *tokenize_me;
 	char *token;
-	u64 rook, ep_pawn_adjacent;
+	u64 rook, ep_pawn_adjacent, piece_bb;
 
 	pos_clear(pos);
 
@@ -262,6 +262,21 @@ void import_sfen(const char *str, struct position *pos)
 	token = strtok(NULL, " ");
 	FULL_MOVE_NUMBER = atoi(token);
 
+	/* Update zobrist keys */
+	for (color = W; color != COLOR_NONE; color++) {
+		for (piece = K; piece != PIECE_NONE; piece++) {
+			piece_bb = pos->piece[color][piece];
+			while (piece_bb) {
+				sq = pop_LSB(&piece_bb);
+				pos->zkey ^= zob.piece[color][piece][sq];
+			}
+		}
+	}
+	pos->zkey ^= zob.casr[casr(&pos->info)];
+	pos->zkey ^= zob.ep_sq[ep_sq(&pos->info)];
+	if (our_color(&pos->info) == B)
+		pos->zkey ^= zob.turn;
+
 	/* release resources */
 	free(tokenize_me);
 }
@@ -318,7 +333,7 @@ char *export_sfen(struct position *pos, char *str, int fmn)
 	idx++;
 
 	/* Castling rights */
-	if (cas_rights(&pos->info)) {
+	if (casr(&pos->info)) {
 		for (color = W; color != COLOR_NONE; color++) {
 			if (can_OO(color, &pos->info)) {
 				str[idx] = cas_str[birthfile_H(&pos->info) + (color * 8)];

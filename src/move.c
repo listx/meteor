@@ -14,6 +14,10 @@ u32 BITS_MPIECE		= 0xfUL << SHF_MPIECE;
 u32 BITS_CPIECE		= 0xfUL << SHF_CPIECE;
 u32 BITS_PPIECE		= 0xfUL << SHF_PPIECE;
 
+u32 BITS_U_CASR		= 0xfUL << U_SHF_CASR;
+u32 BITS_U_EP_SQ	= 0x7fUL << U_SHF_EP_SQ;
+u32 BITS_U_FMR		= 0x7fUL << U_SHF_FMR;
+
 void init_bitmasks_moves()
 {
 	int sq1, sq2, sq3, direction;

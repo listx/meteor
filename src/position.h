@@ -2,6 +2,7 @@
 #define POSITION_H
 
 #include "io.h"
+#include "hash.h"
 #include "types.h"
 
 /* Position */
@@ -109,7 +110,7 @@ static inline int can_OO_or_OOO(int color, u64 *pos_info)
 	return (color == W) ? (*pos_info & (0x3ULL << SHF_OO_W)) : (*pos_info & (0x3ULL << SHF_OO_B));
 }
 
-static inline u8 cas_rights(u64 *pos_info)
+static inline u8 casr(u64 *pos_info)
 {
 	return (*pos_info & BITS_CASR) >> SHF_CASR;
 }
@@ -124,7 +125,7 @@ static inline int birthfile_A(u64 *pos_info)
 	return (*pos_info & BITS_AROOK_FILE) >> SHF_AROOK_FILE;
 }
 
-static inline int ep_sq(u64 *pos_info)
+static inline u8 ep_sq(u64 *pos_info)
 {
 	return (*pos_info & BITS_EP_SQ) >> SHF_EP_SQ;
 }
@@ -237,6 +238,36 @@ static inline void inc_FMR(u64 *pos_info)
 {
 	if (plies_FMR(pos_info) < 100)
 		set_FMR((plies_FMR(pos_info) + 1), pos_info);
+}
+
+/* Tests */
+static inline void verify_pieces(struct position *pos)
+{
+	int i, j, k;
+	for (i = A1; i != SQ_NONE; i++) {
+		for (j = W; j != COLOR_NONE; j++)
+			for (k = K; k != PIECE_NONE; k++) {
+				if ((BIT[i] & pos->piece[j][k]) && pos->piece_on[i] != k) {
+					error(j ? "B" : "W");
+					switch (k) {
+					case K: error("K"); break;
+					case Q: error("Q"); break;
+					case R: error("R"); break;
+					case X: error("X"); break;
+					case N: error("N"); break;
+					case P: error("P"); break;
+					default: break;
+					}
+					error("'s piece[][] bitboard and piece_on[] array mismatch\n");
+					assert(0);
+				}
+				if ((pos->piece_on[i] == PIECE_NONE) && (pos->piece[j][k] & BIT[i])) {
+					error(j ? "B" : "W");
+					error("'s piece_on says empty piece on a sq, but the bitboard piece[][] says otherwise\n");
+					assert(0);
+				}
+			}
+	}
 }
 
 extern void import_sfen(const char *str, struct position *pos);

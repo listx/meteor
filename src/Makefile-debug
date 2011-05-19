@@ -1,0 +1,6 @@
+include Makefile
+
+# Enable the DEBUG symbol
+CFLAGS += -DDEBUG
+# Debugging symbols
+CFLAGS += -g -O0

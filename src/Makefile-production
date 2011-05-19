@@ -1,0 +1,7 @@
+include Makefile
+
+# Disable debugging
+# The -DNDEBUG flag turns of all assert() statements
+CFLAGS += -DNDEBUG
+# Optimization
+CFLAGS += -O3

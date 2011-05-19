@@ -60,25 +60,6 @@ enum {
 	MOVE_NULL
 };
 
-/*
- * Undo Move Information
- *
- * Undo info is stored in a plain u16 variable, not a struct like the other more
- * complex data structures like *position* and *move*.
- */
-
-/*
- * Bitmap of undo (u32) variable.
- *
- * MSB		Bits Used	Information
- * ---		---------	-----------
- * .		14		*Unused*
- * .		7		FMR clock (plies)
- * .		7		En passant file
- * .		4		Castling rights snapshot of all colors
- * LSB
- */
-
 static inline u32 move_sq1(u32 *move_info)
 {
 	return (*move_info & BITS_SQ1) >> SHF_SQ1;
@@ -107,6 +88,44 @@ static inline u32 cpiece(u32 *move_info)
 static inline u32 ppiece(u32 *move_info)
 {
 	return (*move_info & BITS_PPIECE) >> SHF_PPIECE;
+}
+
+/*
+ * Undo Move Information
+ *
+ * Undo info is stored in a plain u32 variable, not a struct like the other more
+ * complex data structures like *position* and *move*.
+ */
+
+/*
+ * Bitmap of undo (u32) variable.
+ *
+ * MSB		Bits Used	Information
+ * ---		---------	-----------
+ * .		13 		*Unused*
+ * .		7		FMR clock (plies)
+ * .		7		En passant square
+ * .		4		Castling rights snapshot of all colors
+ * .		1		Side to move
+ * LSB
+ */
+
+#define U_SHF_CASR	1
+#define U_SHF_EP_SQ	5
+#define U_SHF_FMR	12
+
+extern u32 BITS_U_CASR;
+extern u32 BITS_U_EP_SQ;
+extern u32 BITS_U_FMR;
+
+static inline u8 casr_uinfo(u32 *undo_info)
+{
+	return (*undo_info & BITS_U_CASR) >> U_SHF_CASR;
+}
+
+static inline u8 ep_sq_uinfo(u32 *undo_info)
+{
+	return (*undo_info & BITS_U_EP_SQ) >> U_SHF_EP_SQ;
 }
 
 extern void init_bitmasks_moves();
