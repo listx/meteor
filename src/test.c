@@ -105,7 +105,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		wunit = malloc(sizeof(*wunit) * moves_initial);
 		for (i = 0; i < moves_initial; i++) {
 			memcpy(&wunit[i].pos, pos, sizeof(*pos));
-			memcpy(&wunit[i].m, &mlist[i], sizeof(&mlist[i]));
+			memcpy(&wunit[i].m, &mlist[i], sizeof(mlist[i]));
 			move_do(&wunit[i].pos, &mlist[i].info, &undo_info);
 			wunit[i].plydepth = plydepth - 1;
 			wunit[i].nodes = 0x0ULL;
