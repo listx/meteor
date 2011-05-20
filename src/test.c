@@ -39,7 +39,6 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 	u32 undo_info;
 	int color, i;
 	u64 subnodes, nodes, zkey, t1, t2, t3;
-	struct tt_perft tt;
 	nodes = 0;
 	subnodes = 0;
 	fmn = FULL_MOVE_NUMBER;
@@ -48,8 +47,8 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 
 	if (hashMB && !test_zob) {
 		printf("\nInitializing hashtable...");
-		init_tt_perft(&tt, hashMB);
-		printf("OK (%"PRIu32" bytes (%"PRIu32"MB), %u entries (%u buckets))\n", tt_hash_size(&tt), (tt_hash_size(&tt) >> 20), tt.entries, tt.entries * 4);
+		init_tt_perft(hashMB);
+		printf("OK (%"PRIu32" bytes (%"PRIu32"MB), %u entries (%u buckets))\n", tt_hash_size(), (tt_hash_size() >> 20), tt.entries, tt.entries * 4);
 	} else {
 		printf("\nHashtable disabled\n");
 	}
@@ -99,7 +98,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 				subnodes = perft_zob(pos, plydepth - 1);
 			} else {
 				if (hashMB)
-					subnodes = perft_hash(pos, plydepth - 1, &tt);
+					subnodes = perft_hash(pos, plydepth - 1);
 				else
 					subnodes = perft(pos, plydepth - 1);
 			}
@@ -213,7 +212,7 @@ void test_perft_display(struct position *pos, int plydepth, int threads)
 		if (perft_queries)
 			printf("%.2f%%", (long)perft_hits/(double)perft_queries * 100);
 			printf(" (%"PRIu64" queries, %"PRIu64" hits, %"PRIu64" writes)\n", perft_queries, perft_hits, tt.writes);
-		free_tt(&tt);
+		free_tt();
 	}
 	if (test_zob) {
 		printf("Zobrist key mechanism OK\n");
@@ -291,7 +290,7 @@ u64 perft_zob(struct position *pos, int plydepth)
         return nodes;
 }
 
-u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
+u64 perft_hash(struct position *pos, int plydepth)
 {
 	u64 nodes = 0x0ULL;
 	int moves, i;
@@ -299,9 +298,10 @@ u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
 	u32 undo_info;
 	struct tt_perft_bucket *bucket;
 	u64 zkey;
+	u64 d = plydepth;
 
 	/* Query the hashtable for an existing bucket under the zkey entry */
-	bucket = get_bucket(&pos->zkey, &plydepth, tt);
+	bucket = get_bucket_lockless(&pos->zkey, &d);
 	perft_queries++;
 
 	/* If a bucket is found, return the value from the stored variale */
@@ -315,7 +315,7 @@ u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
                 for (i = 0; i < moves; i++) {
 			zkey = pos->zkey;
 			move_do(pos, &mlist[i].info, &undo_info);
-                        nodes += perft_hash(pos, plydepth - 1, tt);
+                        nodes += perft_hash(pos, plydepth - 1);
 			move_undo(pos, &mlist[i].info, &undo_info);
 			if (zkey != pos->zkey) {
 				assert(0);
@@ -323,7 +323,7 @@ u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
                 }
 
 		/* Store calculated data into hashtable */
-		update_entry(&pos->zkey, &nodes, &plydepth, tt);
+		update_entry(&pos->zkey, &nodes, &plydepth);
                 return nodes;
         }
 
@@ -333,7 +333,7 @@ u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt)
 	 */
 	int depth1 = 1;
 	u64 m = moves;
-	update_entry(&pos->zkey, &m, &depth1, tt);
+	update_entry(&pos->zkey, &m, &depth1);
 	return moves;
 }
 
@@ -402,7 +402,19 @@ void idle_work_loop(int *thread_id)
 		 * other worker threads don't have to wait until this (possibly
 		 * very long) perft() call is finished
 		 */
-		wunit[i].nodes = perft(&wunit[i].pos, wunit[i].plydepth);
+		pthread_mutex_lock(&lock);
+		if (hashMB) {
+			pthread_mutex_unlock(&lock);
+			wunit[i].nodes = perft_hash(&wunit[i].pos, wunit[i].plydepth);
+		} else {
+			if (test_zob) {
+				pthread_mutex_unlock(&lock);
+				wunit[i].nodes = perft_zob(&wunit[i].pos, wunit[i].plydepth);
+			} else {
+				pthread_mutex_unlock(&lock);
+				wunit[i].nodes = perft(&wunit[i].pos, wunit[i].plydepth);
+			}
+		}
 
 		pthread_mutex_lock(&lock);
 		wunit[i].complete = true;

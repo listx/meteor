@@ -1,6 +1,7 @@
 #include "hash.h"
 
 struct zobrist zob;
+struct tt_perft tt;
 
 void init_zob()
 {
@@ -43,63 +44,63 @@ void show_zob()
 	printf("zob.turn is: %"PRIu64"\n", zob.turn);
 }
 
-void clear_tt(struct tt_perft *tt)
+void clear_tt()
 {
-        memset(tt->bucket, 0, tt_hash_size(tt));
-        tt->writes = 0;
+        memset(tt.bucket, 0, tt_hash_size());
+        tt.writes = 0;
 }
 
-void free_tt(struct tt_perft *tt)
+void free_tt()
 {
-	free(tt->bucket);
-	tt->entries = 0;
+	free(tt.bucket);
+	tt.entries = 0;
 }
 
-void init_tt_perft(struct tt_perft *tt, int desiredMB)
+void init_tt_perft(int desiredMB)
 {
 	u32 desired_bytes;
 
 	desired_bytes = desiredMB << 20; /* covert MiB to B */
 
 	/* Find how many MB we can *actually* use, based on the memory
-	 * requirement of a tt->bucket value. However, instead of a raw maximum,
+	 * requirement of a tt.bucket value. However, instead of a raw maximum,
 	 * we only consider neat intervals of even numbers, so that we end up
 	 * with a nice, "computerish" number.
 	 */
-	tt->entries = 0;
-        while (((tt->entries + 1024) * 4 * (sizeof(*tt->bucket))) <= (desired_bytes))
-                tt->entries += 1024;
+	tt.entries = 0;
+        while (((tt.entries + 1024) * 4 * (sizeof(*tt.bucket))) <= (desired_bytes))
+                tt.entries += 1024;
 
 	/* Dynamically allocate the needed number of bytes; we multiply by 4
 	 * because we use 4 "buckets" per entry */
-	tt->bucket = malloc(tt_hash_size(tt));
+	tt.bucket = malloc(tt_hash_size());
 
-	if (tt->bucket == NULL)
+	if (tt.bucket == NULL)
 		fatal("hashtable memory allocation failure (not enough RAM)\n");
 
-	clear_tt(tt);
+	clear_tt();
 }
 
 /* Locate the correct hash entry's first available (overwriteable) bucket; we
- * verify the correctness of the bucket by comparing the full 64-bit zkey and
- * depth information. */
-struct tt_perft_bucket *get_bucket(u64 *zkey, int *depth, struct tt_perft *tt)
+ * verify the correctness of the bucket by un-xoring the retrieved
+ * (bucket->zkey) value with the depth. */
+struct tt_perft_bucket *get_bucket_lockless(u64 *zkey, u64 *depth)
 {
 	int i;
 	struct tt_perft_bucket *bucket;
-	bucket = first_bucket(zkey, tt);
+	bucket = first_bucket(zkey);
 	for (i = 0; i < 4; i++, bucket++) {
-		if ((bucket->zkey == *zkey) && (get_depth(&bucket->info) == *depth))
+		if ((((bucket->zkey) ^ *depth) == *zkey))
 			return bucket;
 	}
 	return NULL;
 }
 
-void update_entry(u64 *zkey, u64 *nodes, int *depth, struct tt_perft *tt)
+void update_entry(u64 *zkey, u64 *nodes, int *depth)
 {
 	int i;
 	struct tt_perft_bucket *bucket;
-	bucket = first_bucket(zkey, tt);
+	bucket = first_bucket(zkey);
 	for (i = 0; i < 4; i++, bucket++) {
 		/* If the bucket is empty (since we used memset() earlier to set
 		 * everything to zero, an easy way to do this is to check if the
@@ -108,8 +109,9 @@ void update_entry(u64 *zkey, u64 *nodes, int *depth, struct tt_perft *tt)
 		 * one we're about to store, and if so, overwrite it.
 		 */
 		if ((bucket->zkey == 0x0ULL) || (*depth > get_depth(&bucket->info))) {
-			set_bucket(bucket, zkey, nodes, depth);
-			tt->writes++;
+			u64 d = *depth;
+			set_bucket_lockless(bucket, zkey, nodes, &d);
+			tt.writes++;
 			return;
 		}
 	}

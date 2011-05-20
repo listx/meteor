@@ -28,21 +28,11 @@ struct tt_perft {
         u64 writes; /* number of writes to the tt (global counter) */
 };
 
+extern struct tt_perft tt;
+
 /* Read tt bucket */
 static inline int get_depth(u64 *tt_info) { return (int)(*tt_info & 0xf); }
 static inline u64 get_nodes(u64 *tt_info) { return (u64)(*tt_info >> 4); }
-
-/* Write to tt bucket */
-static inline void set_nodes(u64 *tt_info, u64 *nodes)
-{
-        *tt_info &= ~(0xffffffffffffffULL << 4);
-        *tt_info |= *nodes << 4;
-}
-static inline void set_depth(u64 *tt_info, int *depth)
-{
-        *tt_info &= ~(0xf);
-        *tt_info |= *depth;
-}
 
 /*
  * Each zobrist key is hashed to a single "entry", which is just a
@@ -59,35 +49,36 @@ static inline void set_depth(u64 *tt_info, int *depth)
  * reducing the 64-bit wide zkey to exactly the size of the hash table; i.e.,
  * instead of reading each zkey's entire 64 bits, we only read the lowest 15, or
  * 16 bits (the larger the hash table size, the more bits we read). That's what
- * the (*zkey & (tt->buckets - 1) does. Then, we multiply by 4 (by doing two
+ * the (*zkey & (tt.buckets - 1) does. Then, we multiply by 4 (by doing two
  * operations of ^2 (two left-shifts)) because there are 4 "buckets" for each
- * zkey entry --- so the very first bucket is at memory address (tt->bucket +
- * 0), then the next one is at (tt->bucket + 4), then at (tt->bucket + 8), and
+ * zkey entry --- so the very first bucket is at memory address (tt.bucket +
+ * 0), then the next one is at (tt.bucket + 4), then at (tt.bucket + 8), and
  * so on.
  */
-static inline struct tt_perft_bucket *first_bucket(u64 *zkey, struct tt_perft *tt)
+static inline struct tt_perft_bucket *first_bucket(u64 *zkey)
 {
-        return tt->bucket + ((*zkey & (tt->entries - 1)) << 2);
+        return tt.bucket + ((*zkey & (tt.entries - 1)) << 2);
 }
 
-static inline void set_bucket(struct tt_perft_bucket *bucket, u64 *zkey, u64 *nodes, int *depth)
+static inline void set_bucket_lockless(struct tt_perft_bucket *bucket, u64 *zkey, u64 *nodes, u64 *depth)
 {
-        bucket->zkey = *zkey;
-        set_nodes(&bucket->info, nodes);
-        set_depth(&bucket->info, depth);
+	u64 info = ((*nodes << 4) | *depth);
+	bucket->zkey = *zkey ^ *depth;
+	bucket->info = info;
 }
 
-static inline u32 tt_hash_size(struct tt_perft *tt)
+static inline u32 tt_hash_size()
 {
-	return tt->entries * sizeof(*tt->bucket) * 4 ;
+	return tt.entries * sizeof(*tt.bucket) * 4 ;
 }
 
 extern void init_zob();
 extern void show_zob();
-extern void clear_tt(struct tt_perft *tt);
-extern void free_tt(struct tt_perft *tt);
-extern void init_tt_perft(struct tt_perft *tt, int desiredMB);
-extern struct tt_perft_bucket *get_bucket(u64 *zkey, int *depth, struct tt_perft *tt);
-extern void update_entry(u64 *zkey, u64 *nodes, int *depth, struct tt_perft *tt);
+extern void clear_tt();
+extern void free_tt();
+extern void init_tt_perft(int desiredMB);
+extern struct tt_perft_bucket *get_bucket(u64 *zkey, int *depth);
+extern struct tt_perft_bucket *get_bucket_lockless(u64 *zkey, u64 *info);
+extern void update_entry(u64 *zkey, u64 *nodes, int *depth);
 
 #endif

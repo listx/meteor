@@ -16,7 +16,7 @@ extern void test_perft(const char *sfen, int plydepth, int threads);
 extern void test_perft_display(struct position *pos, int plydepth, int threads);
 extern u64 perft(struct position *pos, int plydepth);
 extern u64 perft_zob(struct position *pos, int plydepth);
-extern u64 perft_hash(struct position *pos, int plydepth, struct tt_perft *tt);
+extern u64 perft_hash(struct position *pos, int plydepth);
 
 extern void move_show_line(struct position *pos, struct move *mlist, int i, char *sfen, int sfen_maxlen, int fmn);
 extern void *start_routine(void *thread_id);
