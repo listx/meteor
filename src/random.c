@@ -1,6 +1,6 @@
 #include "random.h"
 
-#define QSIZE 2097152
+#define QSIZE 0x200000
 #define CNG  ( cng=6906969069LL*cng+13579 )
 #define XS ( xs^=(xs<<13), xs^=(xs>>17), xs^=(xs<<43) )
 #define KISS ( B64MWC()+CNG+XS )
@@ -16,6 +16,7 @@
  */
 
 static u64 QARY[QSIZE];
+static int j = QSIZE - 1;
 static u64 carry = 0;
 static u64 xs = 362436069362436069LL;
 static u64 cng = 123456789987654321LL; /* use this as the seed */
@@ -23,8 +24,7 @@ static u64 cng = 123456789987654321LL; /* use this as the seed */
 u64 B64MWC()
 {
 	u64 t, x;
-	static int j = 2097151;
-	j = (j + 1) & 2097151;
+	j = (j + 1) & (QSIZE - 1);
 	x = QARY[j];
 	t = (x << 28) + carry;
 	carry = (x >> 36) - (t < x);
