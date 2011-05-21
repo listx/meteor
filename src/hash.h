@@ -77,7 +77,6 @@ extern void show_zob();
 extern void clear_tt();
 extern void free_tt();
 extern void init_tt_perft(int desiredMB);
-extern struct tt_perft_bucket *get_bucket(u64 *zkey, int *depth);
 extern struct tt_perft_bucket *get_bucket_lockless(u64 *zkey, u64 *info);
 extern void update_entry(u64 *zkey, u64 *nodes, int *depth);
 
