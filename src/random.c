@@ -1,10 +1,5 @@
 #include "random.h"
 
-#define QSIZE 0x200000
-#define CNG  ( cng=6906969069LL*cng+13579 )
-#define XS ( xs^=(xs<<13), xs^=(xs>>17), xs^=(xs<<43) )
-#define KISS ( B64MWC()+CNG+XS )
-
 /* This is the KISS (MWC + CNG + XS) PRNG algorithm, devised by the late Dr.
  * George Marsaglia (1924-2011), creator of the "Diehard Battery of Test of
  * Randomness." Its main component is the MWC (multiply-with-carry) algorithm,
@@ -14,6 +9,11 @@
  * randomness tests.  (See Dr. Marsaglia's post, "RNGs with periods exceeding
  * 10^(40million)." on sci.math for more information.)
  */
+
+#define QSIZE 0x200000
+#define CNG  ( cng=6906969069LL*cng+13579 )
+#define XS ( xs^=(xs<<13), xs^=(xs>>17), xs^=(xs<<43) )
+#define KISS ( B64MWC()+CNG+XS )
 
 static u64 QARY[QSIZE];
 static int j = QSIZE - 1;
@@ -38,6 +38,9 @@ void randk_seed()
 	/* Seed QARY[] with CNG+XS: */
 	for (i = 0; i < QSIZE; i++)
 		QARY[i] = CNG + XS;
+	/* Run through several rounds to warm up the state */
+	for (i = 0; i < 104729; i++) /* 104729 is the 10,000th prime */
+		randk();
 }
 
 void randk_seed_manual(u64 seed)
