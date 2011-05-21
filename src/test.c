@@ -297,7 +297,6 @@ u64 perft_hash(struct position *pos, int plydepth)
 	struct move mlist[256];
 	u32 undo_info;
 	struct tt_perft_bucket *bucket;
-	u64 zkey;
 	u64 d = plydepth;
 
 	/* Query the hashtable for an existing bucket under the zkey entry */
@@ -313,13 +312,9 @@ u64 perft_hash(struct position *pos, int plydepth)
         moves = movegen(pos, mlist, our_color(&pos->info));
         if (plydepth > 1) {
                 for (i = 0; i < moves; i++) {
-			zkey = pos->zkey;
 			move_do(pos, &mlist[i].info, &undo_info);
                         nodes += perft_hash(pos, plydepth - 1);
 			move_undo(pos, &mlist[i].info, &undo_info);
-			if (zkey != pos->zkey) {
-				assert(0);
-			}
                 }
 
 		/* Store calculated data into hashtable */
