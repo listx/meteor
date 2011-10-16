@@ -3,7 +3,7 @@
 struct zobrist zob;
 struct tt_perft tt;
 
-void init_zob()
+void init_zob(void)
 {
 	int us, p, sq, i;
 	u64 seed;
@@ -26,7 +26,7 @@ void init_zob()
 	zob.turn = randk();
 }
 
-void show_zob()
+void show_zob(void)
 {
 	int us, p, sq, i;
 
@@ -44,13 +44,13 @@ void show_zob()
 	printf("zob.turn is: %"PRIu64"\n", zob.turn);
 }
 
-void clear_tt()
+void clear_tt(void)
 {
         memset(tt.bucket, 0, tt_hash_size());
         tt.writes = 0;
 }
 
-void free_tt()
+void free_tt(void)
 {
 	free(tt.bucket);
 	tt.entries = 0;

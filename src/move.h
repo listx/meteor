@@ -128,8 +128,8 @@ static inline u8 ep_sq_uinfo(u32 *undo_info)
 	return (*undo_info & BITS_U_EP_SQ) >> U_SHF_EP_SQ;
 }
 
-extern void init_bitmasks_moves();
-extern void init_pawn_attacks();
+extern void init_bitmasks_moves(void);
+extern void init_pawn_attacks(void);
 extern void disp_move(u32 *move_info);
 
 #endif

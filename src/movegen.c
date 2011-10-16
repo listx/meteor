@@ -64,7 +64,7 @@ u64 attacks_pseudo_R[64];
 u64 attacks_pseudo_X[64];
 u64 attacks_pseudo_Q[64];
 
-void init_attacks()
+void init_attacks(void)
 {
 	int sq;
 	int GO_R[4][2] = {{0,1},{0,-1},{1,0},{-1,0}};

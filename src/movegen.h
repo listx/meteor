@@ -221,7 +221,7 @@ static inline void find_checkers(struct position *pos)
 	}
 }
 
-extern void init_attacks();
+extern void init_attacks(void);
 extern void init_attacks_sliding(u64 attacks[], int attack_idx[], u64 mask[], const int shift[2], const u64 mult[], int delta[][2]);
 extern u64 sliding_attacks(int sq, u64 block, int dirs, int delta[][2], int fmin, int fmax, int rmin, int rmax);
 extern u64 index_to_bitboard(int idx, u64 mask);

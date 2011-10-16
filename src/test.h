@@ -21,10 +21,10 @@ extern u64 perft_hash(struct position *pos, int plydepth);
 extern void move_show_line(struct position *pos, struct move *mlist, int i, char *sfen, int sfen_maxlen, int fmn);
 extern void *start_routine(void *thread_id);
 extern void idle_work_loop(int *thread_id);
-extern void kill_thread_vars();
-extern void init_thread_vars();
+extern void kill_thread_vars(void);
+extern void init_thread_vars(void);
 extern void init_threads(int threads);
 
-extern void randk_verify();
+extern void randk_verify(void);
 
 #endif

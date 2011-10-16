@@ -293,7 +293,7 @@ static inline char rank_to_char(int r)
 	return '1' + r;
 }
 
-extern void init_bitmasks();
+extern void init_bitmasks(void);
 extern char *sq_to_str(int sq, char *str);
 extern char *piece_to_str(int piece, char *str);
 

@@ -21,7 +21,7 @@ static u64 carry = 0;
 static u64 xs = 362436069362436069LL;
 static u64 cng = 123456789987654321LL; /* use this as the seed */
 
-u64 B64MWC()
+u64 B64MWC(void)
 {
 	u64 t, x;
 	j = (j + 1) & (QSIZE - 1);
@@ -32,7 +32,7 @@ u64 B64MWC()
 }
 
 /* Initialize PRNG with default seed */
-void randk_seed()
+void randk_seed(void)
 {
 	u64 i;
 	/* Seed QARY[] with CNG+XS: */
@@ -50,7 +50,7 @@ void randk_seed_manual(u64 seed)
 }
 
 /* Generate a pseudorandom 64-bit unsigned integer. */
-u64 randk()
+u64 randk(void)
 {
 	return KISS;
 }

@@ -9,9 +9,9 @@ enum {
 	MODE_NONE
 };
 
-void disp_help();
-void disp_ver();
-void initialize();
+void disp_help(void);
+void disp_ver(void);
+void initialize(void);
 void cap(int *val, int limit);
 
 int main(int argc, char **argv)
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
         return 0;
 }
 
-void disp_help()
+void disp_help(void)
 {
 	printf("Usage: meteor [OPTIONS]\n");
 	printf("  -h --help           Show help message\n");
@@ -140,13 +140,13 @@ void disp_help()
 	exit(0);
 }
 
-void disp_ver()
+void disp_ver(void)
 {
 	printf("meteor version %s\n", METEOR_VERSION);
 	exit(0);
 }
 
-void initialize()
+void initialize(void)
 {
 	init_bitmasks();
 	init_bitmasks_moves();

@@ -67,15 +67,15 @@ static inline void set_bucket_lockless(struct tt_perft_bucket *bucket, u64 *zkey
 	bucket->info = info;
 }
 
-static inline u32 tt_hash_size()
+static inline u32 tt_hash_size(void)
 {
 	return tt.entries * sizeof(*tt.bucket) * 4 ;
 }
 
-extern void init_zob();
-extern void show_zob();
-extern void clear_tt();
-extern void free_tt();
+extern void init_zob(void);
+extern void show_zob(void);
+extern void clear_tt(void);
+extern void free_tt(void);
 extern void init_tt_perft(int desiredMB);
 extern struct tt_perft_bucket *get_bucket_lockless(u64 *zkey, u64 *info);
 extern void update_entry(u64 *zkey, u64 *nodes, int *depth);

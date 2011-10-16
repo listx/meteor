@@ -8,7 +8,7 @@ u64 BITS_X[64][64];
 u64 BITS_Q[64][64];
 u64 BITS_Q_INCL[64][64];
 
-void init_bitmasks()
+void init_bitmasks(void)
 {
 	int rank, file, sq, sq1, sq2, sq3, sq4, direction, i;
 	int ray[4] = {

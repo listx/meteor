@@ -5,7 +5,7 @@
 #include "io.h"
 #include "types.h"	/* u64 */
 
-extern u64 get_time();
+extern u64 get_time(void);
 extern void time_pretty(u64 time);
 
 #endif

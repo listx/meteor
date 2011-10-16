@@ -1,7 +1,7 @@
 #include "time.h"
 
 /* Returns the time, with decisecond precision */
-u64 get_time()
+u64 get_time(void)
 {
 	struct timespec t;
 	/* CLOCK_MONOTONIC_RAW requires Linux Kernel 2.6.28 or higher */

@@ -333,7 +333,7 @@ u64 perft_hash(struct position *pos, int plydepth)
 }
 
 /* Initialize mutexes and condition variables */
-void init_thread_vars()
+void init_thread_vars(void)
 {
 	int ok;
 
@@ -350,7 +350,7 @@ void init_thread_vars()
 		fatal("pthread_cond_init() failed");
 }
 
-void kill_thread_vars()
+void kill_thread_vars(void)
 {
 	pthread_mutex_destroy(&lock);
 	pthread_cond_destroy(&wake);
@@ -440,7 +440,7 @@ void init_threads(int threads)
 	}
 }
 
-void randk_verify()
+void randk_verify(void)
 {
 	int i;
 	u64 x, n1, n2;
