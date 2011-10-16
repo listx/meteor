@@ -16,10 +16,18 @@
 #define KISS ( B64MWC()+CNG+XS )
 
 static u64 QARY[QSIZE];
-static int j = QSIZE - 1;
-static u64 carry = 0;
-static u64 xs = 362436069362436069LL;
-static u64 cng = 123456789987654321LL; /* use this as the seed */
+static int j;
+static u64 carry;
+static u64 xs;
+static u64 cng;
+
+void randk_reset(void)
+{
+	j = QSIZE - 1;
+	carry = 0;
+	xs = 362436069362436069LL;
+	cng = 123456789987654321LL; /* use this as the seed */
+}
 
 u64 B64MWC(void)
 {
@@ -38,15 +46,20 @@ void randk_seed(void)
 	/* Seed QARY[] with CNG+XS: */
 	for (i = 0; i < QSIZE; i++)
 		QARY[i] = CNG + XS;
-	/* Run through several rounds to warm up the state */
-	for (i = 0; i < 104729; i++) /* 104729 is the 10,000th prime */
-		randk();
 }
 
 void randk_seed_manual(u64 seed)
 {
 	cng = seed;
 	randk_seed();
+}
+
+void randk_warmup(int rounds)
+{
+	int i;
+	/* Run through several rounds to warm up the state */
+	for (i = 0; i < rounds; i++)
+		randk();
 }
 
 /* Generate a pseudorandom 64-bit unsigned integer. */

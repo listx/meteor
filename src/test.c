@@ -452,22 +452,16 @@ void randk_verify(void)
 	/* Generate 10^9 B64MWC()s */
 	for (i = 0; i < 1000000000; i++)
 		x = B64MWC();
-	if (x == n1) {
-		printf("Test 1: B64MWC(): expected %"PRIu64", got %"PRIu64"\n", n1, x);
-		printf("Test 1: OK\n");
-	} else {
-		error("Test 1: B64MWC(): expected %"PRIu64", got %"PRIu64"", n1, x);
-		fatal("Test 1: FAIL");
-	}
+	if (x == n1)
+		printf("Test 1: B64MWC(): OK: expected %"PRIu64", got %"PRIu64"\n", n1, x);
+	else
+		fatal("Test 1: B64MWC(): FAIL: expected %"PRIu64", got %"PRIu64"", n1, x);
 
 	/* Generate 10^9 KISSes: */
 	for (i = 0; i < 1000000000; i++)
 		x = randk();
-	if (x == n2) {
-		printf("Test 2: randk(): expected %"PRIu64", got %"PRIu64"\n", n2, x);
-		printf("Test 2: OK\n");
-	} else {
-		error("Test 2: randk(): expected %"PRIu64", got %"PRIu64"", n2, x);
-		fatal("Test 2: FAIL");
-	}
+	if (x == n2)
+		printf("Test 2: randk(): OK: expected %"PRIu64", got %"PRIu64"\n", n2, x);
+	else
+		fatal("Test 2: randk(): FAIL: expected %"PRIu64", got %"PRIu64"", n2, x);
 }

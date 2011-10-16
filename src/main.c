@@ -112,6 +112,7 @@ int main(int argc, char **argv)
 			error("perft: need sfen and plydepth");
 		break;
 	case MODE_KISST:
+		randk_reset();
 		randk_seed(); /* initialize PRNG with default seed */
 		randk_verify();
 		break;
