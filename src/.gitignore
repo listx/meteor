@@ -1,3 +1,4 @@
 meteor
+libmeteor*
 *.o
 *.swp
