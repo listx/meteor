@@ -1,5 +1,13 @@
 #include "movegen.h"
 
+void initialize(void)
+{
+	init_bitmasks();
+	init_bitmasks_moves();
+	init_pawn_attacks();
+	init_attacks();
+}
+
 u64 attacks_table_R[102400];
 int attacks_idx_R[64];
 u64 mask_R[64];

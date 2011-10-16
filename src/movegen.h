@@ -7,6 +7,9 @@
 #include "position.h"
 #include "move.h"
 
+/* Master bitboard initialization */
+extern void initialize(void);
+
 /* Sliding piece move generation */
 extern u64 attacks_table_R[102400];
 extern int attacks_idx_R[64];
