@@ -1,6 +1,6 @@
 CC = gcc
 #CC = clang
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -Werror
 # CPU-specific optimization
 CFLAGS += -march=native
 # Use pipe instead of temporary files b/n various stages of compilation
