@@ -175,52 +175,19 @@ static inline void find_pinned(struct position *pos)
 
 static inline void find_checkers(struct position *pos)
 {
-	u64 blockers;
-	int us, sqk, sq2;
+	int us, sqk;
 
 	pos->checkers = 0x0ULL;
-	blockers = 0x0ULL;
 	us = pos->info & BIT_TURN;
 	sqk = sq_from_bit(&pos->piece[us][K]);
-	sq2 = SQ_NONE;
 
 	/* find all enemy checkers against our king */
 	if (bits_attacked_by(!us, pos) & BIT[sqk]) {
-		/* add all knight, pawn checkers */
 		pos->checkers |= MOVES_N[sqk] & pos->piece[!us][N];
 		pos->checkers |= ATTACKS_P[us][sqk] & pos->piece[!us][P];
-		/* add slideing checkers, only if not blocked */
-		u64 enemy_sliders = attacks_Q(sqk, pos->occupied) & sliders(!us, pos);
-		while (enemy_sliders) {
-			sq2 = pop_LSB(&enemy_sliders);
-			blockers = BITS_Q[sqk][sq2] & pos->occupied;
-			if (!blockers) {
-				switch (pos->piece_on[sq2]) {
-				case R:
-					if (BITS_R[sqk][sq2])
-						pos->checkers |= BIT[sq2];
-					/* adjacent rook */
-					if (MOVES_K[sqk] & MOVES_R[sqk] & BIT[sq2])
-						pos->checkers |= BIT[sq2];
-					break;
-				case X:
-					if (BITS_X[sqk][sq2])
-						pos->checkers |= BIT[sq2];
-					/* adjacent bishop */
-					if (MOVES_K[sqk] & MOVES_X[sqk] & BIT[sq2])
-						pos->checkers |= BIT[sq2];
-					break;
-				case Q:
-					pos->checkers |= BIT[sq2];
-					/* adjacent queen */
-					if (MOVES_K[sqk] & BIT[sq2])
-						pos->checkers |= BIT[sq2];
-					break;
-				default:
-					assert(0);
-				}
-			}
-		}
+		pos->checkers |= attacks_Q(sqk, pos->occupied) & pos->piece[!us][Q];
+		pos->checkers |= attacks_R(sqk, pos->occupied) & pos->piece[!us][R];
+		pos->checkers |= attacks_X(sqk, pos->occupied) & pos->piece[!us][X];
 	}
 }
 
