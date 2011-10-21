@@ -383,9 +383,11 @@ u8 movegen_P(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *t
 					sq2 = ep_sq(&pos->info);
 					/* Some chess laws:
 					 *
-					 * If the pawn is pinned, it can never
-					 * make an en passant capture. (So we
-					 * don't need to add any moves.)
+					 * If the pawn is pinned, it can only
+					 * make an en passant capture if (1) the
+					 * pinning ray is a diagonal, and (2)
+					 * the destination square is on the same
+					 * diagonal.
 					 *
 					 * If the pawn is not pinned, it is
 					 * still not allowed to make an en
@@ -400,21 +402,24 @@ u8 movegen_P(struct position *pos, struct move *mlist, u8 *moves, int us, u64 *t
 					 * allowed.
 					 */
 
-                                        if (BIT[sq1] & ~pos->pinned) {
-                                                u64 enemy_sliders_R = attacks_R(sqk, (pos->occupied & ~(BIT[sq1] | BIT[ep_pawn_sq]))) & sliders_R(!us, pos) & BIT_RANK[epr];
-                                                if (BIT_RANK[epr] & BIT[sqk] && enemy_sliders_R) {
-                                                        while (enemy_sliders_R) {
-                                                                int sq3 = pop_LSB(&enemy_sliders_R);
-                                                                u64 ray = BITS_R[sqk][sq3];
-								if (!(ray & (BIT[sq1] | BIT[ep_pawn_sq]))) {
-                                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
-                                                                        break;
-                                                                }
-                                                        }
-                                                } else {
-                                                        mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
-                                                }
-                                        }
+					u64 enemy_sliders_R = attacks_R(sqk, (pos->occupied & ~(BIT[sq1] | BIT[ep_pawn_sq]))) & sliders_R(!us, pos) & BIT_RANK[epr];
+					if (BIT_RANK[epr] & BIT[sqk] && enemy_sliders_R) {
+						while (enemy_sliders_R) {
+							int sq3 = pop_LSB(&enemy_sliders_R);
+							u64 ray = BITS_R[sqk][sq3];
+							if (!(ray & (BIT[sq1] | BIT[ep_pawn_sq]))) {
+								mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+								break;
+							}
+						}
+					} else {
+						if (BIT[sq1] & pos->pinned) {
+							int sq_pinner = get_pinner_sq(pos, sq1, sqk, us);
+							if (BITS_X[sq_pinner][sqk] & BIT[sq2])
+								mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+						} else
+							mlist[(*moves)++].info = move_create(sq1, sq2, MOVE_EP_CAPTURE, P, P, PIECE_NONE);
+					}
                                 }
                         }
                 } else {

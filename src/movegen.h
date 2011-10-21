@@ -173,6 +173,14 @@ static inline void find_pinned(struct position *pos)
         }
 }
 
+static inline int get_pinner_sq(struct position *pos, int sq_pinned, int sqk, int us)
+{
+	u64 before = attacks_Q(sqk, pos->occupied);
+	u64 after = attacks_Q(sqk, pos->occupied & ~BIT[sq_pinned]);
+	u64 pinner = (~before & after) & sliders(!us, pos);
+	return sq_from_bit(&pinner);
+}
+
 static inline void find_checkers(struct position *pos)
 {
 	int us, sqk;
