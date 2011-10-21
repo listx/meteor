@@ -102,17 +102,18 @@ static inline u32 ppiece(u32 *move_info)
  *
  * MSB		Bits Used	Information
  * ---		---------	-----------
- * .		13 		*Unused*
+ * .		7 		*Unused* (alignment)
  * .		7		FMR clock (plies)
  * .		7		En passant square
+ * .		6		A/H Rook birthfiles (only for alignment)
  * .		4		Castling rights snapshot of all colors
- * .		1		Side to move
+ * .		1		Side to move (only for alignment)
  * LSB
  */
 
 #define U_SHF_CASR	1
-#define U_SHF_EP_SQ	5
-#define U_SHF_FMR	12
+#define U_SHF_EP_SQ	11
+#define U_SHF_FMR	18
 
 extern u32 BITS_U_CASR;
 extern u32 BITS_U_EP_SQ;
