@@ -31,8 +31,14 @@ struct tt_perft {
 extern struct tt_perft tt;
 
 /* Read tt bucket */
-static inline int get_depth(u64 *tt_info) { return (int)(*tt_info & 0xf); }
-static inline u64 get_nodes(u64 *tt_info) { return (u64)(*tt_info >> 4); }
+static inline int get_depth(u64 *tt_info)
+{
+	return (int)(*tt_info & 0xf);
+}
+static inline u64 get_nodes(u64 *tt_info)
+{
+	return (u64)(*tt_info >> 4);
+}
 
 /*
  * Each zobrist key is hashed to a single "entry", which is just a
@@ -49,7 +55,7 @@ static inline u64 get_nodes(u64 *tt_info) { return (u64)(*tt_info >> 4); }
  * reducing the 64-bit wide zkey to exactly the size of the hash table; i.e.,
  * instead of reading each zkey's entire 64 bits, we only read the lowest 15, or
  * 16 bits (the larger the hash table size, the more bits we read). That's what
- * the (*zkey & (tt.buckets - 1) does. Then, we multiply by 4 (by doing two
+ * the (*zkey & (tt.buckets - 1)) does. Then, we multiply by 4 (by doing two
  * operations of ^2 (two left-shifts)) because there are 4 "buckets" for each
  * zkey entry --- so the very first bucket is at memory address (tt.bucket +
  * 0), then the next one is at (tt.bucket + 4), then at (tt.bucket + 8), and
