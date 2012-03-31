@@ -50,7 +50,8 @@ void randk_seed(void)
 
 void randk_seed_manual(u64 seed)
 {
-	cng = seed;
+	cng ^= seed;
+	xs ^= cng;
 	randk_seed();
 }
 
