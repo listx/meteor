@@ -2,18 +2,19 @@
 
 /* This is the KISS (MWC + CNG + XS) PRNG algorithm, devised by the late Dr.
  * George Marsaglia (1924-2011), creator of the "Diehard Battery of Test of
- * Randomness." Its main component is the MWC (multiply-with-carry) algorithm,
- * here in its 64-bit version, B64MWC(). Dr. Marsaglia devised this algorithm in
+ * Randomness." Its main component is the MWC (Multiply-With-Carry) algorithm,
+ * here in its 64-bit version, B64MWC(). The CNG and XS stand for
+ * Congruential-Shift and XOR-Shift. Dr. Marsaglia devised this algorithm in
  * January 2011, when he was 87 years old, less than a month before his untimely
  * death. This PRNG's period is over 10^(40million), and passes all standard
- * randomness tests.  (See Dr. Marsaglia's post, "RNGs with periods exceeding
+ * randomness tests. (See Dr. Marsaglia's post, "RNGs with periods exceeding
  * 10^(40million)." on sci.math for more information.)
  */
 
 #define QSIZE 0x200000
-#define CNG  ( cng=6906969069LL*cng+13579 )
-#define XS ( xs^=(xs<<13), xs^=(xs>>17), xs^=(xs<<43) )
-#define KISS ( B64MWC()+CNG+XS )
+#define CNG (cng = 6906969069ULL * cng + 13579)
+#define XS (xs ^= (xs << 13), xs ^= (xs >> 17), xs ^= (xs << 43))
+#define KISS (B64MWC() + CNG + XS)
 
 static u64 QARY[QSIZE];
 static int j;
@@ -25,8 +26,8 @@ void randk_reset(void)
 {
 	j = QSIZE - 1;
 	carry = 0;
-	xs = 362436069362436069LL;
-	cng = 123456789987654321LL; /* use this as the seed */
+	xs = 362436069362436069ULL;
+	cng = 123456789987654321ULL; /* use this as the seed */
 }
 
 u64 B64MWC(void)
