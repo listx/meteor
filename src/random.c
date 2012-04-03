@@ -3,12 +3,12 @@
 /* This is the KISS (MWC + CNG + XS) PRNG algorithm, devised by the late Dr.
  * George Marsaglia (1924-2011), creator of the "Diehard Battery of Test of
  * Randomness." Its main component is the MWC (Multiply-With-Carry) algorithm,
- * here in its 64-bit version, B64MWC(). The CNG and XS stand for
- * Congruential-Shift and XOR-Shift. Dr. Marsaglia devised this algorithm in
- * January 2011, when he was 87 years old, less than a month before his untimely
- * death. This PRNG's period is over 10^(40million), and passes all standard
- * randomness tests. (See Dr. Marsaglia's post, "RNGs with periods exceeding
- * 10^(40million)." on sci.math for more information.)
+ * here in its 64-bit version, B64MWC(). The CNG and XS stand for Congruential
+ * and XOR-Shift. Dr. Marsaglia devised this algorithm in January 2011, when he
+ * was 87 years old, less than a month before his untimely death. This PRNG's
+ * period is over 10^(40million), and passes all standard randomness tests. (See
+ * Dr. Marsaglia's post, "RNGs with periods exceeding 10^(40million)." on
+ * sci.math for more information.)
  */
 
 #define QSIZE 0x200000
